@@ -32,7 +32,6 @@ using std::endl;
 #include "hpcg.hpp"
 #endif
 #include <cassert>
-#include <cmath>
 
 #include "GenerateNonsymProblem_ref.hpp"
 
@@ -118,30 +117,25 @@ void GenerateNonsymProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector 
   mtxIndG[0] = new global_int_t[localNumberOfRows * numberOfNonzerosPerRow];
 
   for (local_int_t i=1; i< localNumberOfRows; ++i) {
-    mtxIndL[i] = mtxIndL[0] + i * numberOfNonzerosPerRow;
-    matrixValues[i] = matrixValues[0] + i * numberOfNonzerosPerRow;
-    mtxIndG[i] = mtxIndG[0] + i * numberOfNonzerosPerRow;
+  mtxIndL[i] = mtxIndL[0] + i * numberOfNonzerosPerRow;
+  matrixValues[i] = matrixValues[0] + i * numberOfNonzerosPerRow;
+  mtxIndG[i] = mtxIndG[0] + i * numberOfNonzerosPerRow;
   }
 #endif
 
-  const double one = 1.0;
-  const double two = one + one;
-  double beta = 100.0;
-  double gamma = 1.0 / beta; //one;
   local_int_t localNumberOfNonzeros = 0;
   // TODO:  This triply nested loop could be flattened or use nested parallelism
 #ifndef HPCG_NO_OPENMP
   #pragma omp parallel for
 #endif
-//printf("c=[\n");
   for (local_int_t iz=0; iz<nz; iz++) {
     global_int_t giz = giz0+iz;
     for (local_int_t iy=0; iy<ny; iy++) {
       global_int_t giy = giy0+iy;
       for (local_int_t ix=0; ix<nx; ix++) {
         global_int_t gix = gix0+ix;
-        local_int_t currentLocalRow = iz*(nx*ny) + iy*(nx) + ix;
-        global_int_t currentGlobalRow = giz*(gnx*gny) + giy*(gnx) + gix;
+        local_int_t currentLocalRow = iz*nx*ny+iy*nx+ix;
+        global_int_t currentGlobalRow = giz*gnx*gny+giy*gnx+gix;
 #ifndef HPCG_NO_OPENMP
 // C++ std::map is not threadsafe for writing
         #pragma omp critical
@@ -157,39 +151,35 @@ void GenerateNonsymProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector 
         double bi = 0.0;
         global_int_t * currentIndexPointerG = mtxIndG[currentLocalRow]; // Pointer to current index in current row
         for (int sz=-1; sz<=1; sz++) {
-          int jz = iz+sz;
           if (giz+sz>-1 && giz+sz<gnz) {
             for (int sy=-1; sy<=1; sy++) {
-              int jy = iy+sy;
               if (giy+sy>-1 && giy+sy<gny) {
                 for (int sx=-1; sx<=1; sx++) {
-                  int jx = ix+sx;
                   if (gix+sx>-1 && gix+sx<gnx) {
-                    global_int_t curcol = currentGlobalRow + sz*(gnx*gny) + sy*(gnx) + sx;
+                    global_int_t curcol = currentGlobalRow+sz*gnx*gny+sy*gnx+sx;
                     if (curcol==currentGlobalRow) {
                       matrixDiagonal[currentLocalRow] = currentValuePointer;
-                      *currentValuePointer = 26.0;
+                      *currentValuePointer++ = 26.0;
+                      bi += 26.0;
                     } else {
-                      *currentValuePointer = 1.0;
-                    }
-                    double beta_i = sqrt(one + beta*(((double)(gix0+ix))/((double)(gnx-1)))) *
-                                    sqrt(one + beta*(((double)(giy0+iy))/((double)(gny-1)))) *
-                                    sqrt(one + beta*(((double)(giz0+iz))/((double)(gnz-1))));
-                    double beta_j = sqrt(one + beta*(((double)(gix0+jx))/((double)(gnx-1)))) *
-                                    sqrt(one + beta*(((double)(giy0+jy))/((double)(gny-1)))) *
-                                    sqrt(one + beta*(((double)(giz0+jz))/((double)(gnz-1))));
-                    *currentValuePointer *= (beta_i * beta_j);
-                    if (sy == 0 && sz == 0) {
-                      if (sx == 1) {
-                        *currentValuePointer += (gamma / two);
-                      } else if (sx == -1) {
-                        *currentValuePointer -= (gamma / two);
+                      #define NONSYMM_NUMERICAL
+                      #ifdef NONSYMM_NUMERICAL
+                      if (sy == 0 && sx == 0 && sz == -1) {
+                        *currentValuePointer++ = -1.5;
+                        bi -= 1.5;
+                      } else if (sy == 0 && sx == 0 && sz == 1) {
+                        *currentValuePointer++ = -0.5;
+                        bi -= 0.5;
+                      } else {
+                        *currentValuePointer++ = -1.0;
+                        bi -= 1.0;
                       }
+                      #else
+                      *currentValuePointer++ = -1.0;
+                      bi -= 1.0;
+                      #endif
                     }
-//printf( "%d %d %.16f\n",currentGlobalRow,curcol,*currentValuePointer);
-                    bi += *currentValuePointer ;
                     *currentIndexPointerG++ = curcol;
-                    *currentValuePointer++;
                     numberOfNonzerosInRow++;
                   } // end x bounds test
                 } // end sx loop
@@ -208,7 +198,6 @@ void GenerateNonsymProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector 
       } // end ix loop
     } // end iy loop
   } // end iz loop
-//printf("];\n");
 #ifdef HPCG_DETAILED_DEBUG
   HPCG_fout     << "Process " << A.geom->rank << " of " << A.geom->size <<" has " << localNumberOfRows    << " rows."     << endl
       << "Process " << A.geom->rank << " of " << A.geom->size <<" has " << localNumberOfNonzeros<< " nonzeros." <<endl;

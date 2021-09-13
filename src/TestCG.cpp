@@ -63,6 +63,9 @@ int TestCG(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGData &
   CopyVector(origDiagA, exaggeratedDiagA);
   CopyVector(b, origB);
 
+#if 1
+  if (A.geom->rank==0) HPCG_fout << std::endl << " ** skippping diagonal exaggeration ** " << std::endl << std::endl;
+#else
   // Modify the matrix diagonal to greatly exaggerate diagonal values.
   // CG should converge in about 10 iterations for this problem, regardless of problem size
   for (local_int_t i=0; i< A.localNumberOfRows; ++i) {
@@ -77,11 +80,12 @@ int TestCG(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGData &
     }
   }
   ReplaceMatrixDiagonal(A, exaggeratedDiagA);
+#endif
 
   int niters = 0;
   double normr = 0.0;
   double normr0 = 0.0;
-  int maxIters = 50;
+  int maxIters = 5000;
   int numberOfCgCalls = 2;
   double tolerance = 1.0e-12; // Set tolerance to reasonable value for grossly scaled diagonal terms
   testcg_data.expected_niters_no_prec = 12; // For the unpreconditioned CG call, we should take about 10 iterations, permit 12

@@ -40,6 +40,7 @@ SkipUntilEol(FILE *stream) {
 
 int
 ReadHpcgDat(int *localDimensions, int *secondsPerRun, int *localProcDimensions) {
+  //printf( " >> ReadHpcgDat <<\n" );;
   FILE * hpcgStream = fopen("hpcg.dat", "r");
 
   if (! hpcgStream)
@@ -49,9 +50,13 @@ ReadHpcgDat(int *localDimensions, int *secondsPerRun, int *localProcDimensions) 
 
   SkipUntilEol(hpcgStream); // skip the second line
 
-  for (int i = 0; i < 3; ++i)
+  for (int i = 0; i < 3; ++i) {
     if (fscanf(hpcgStream, "%d", localDimensions+i) != 1 || localDimensions[i] < 16)
+    {
       localDimensions[i] = 16;
+    }
+    //printf( " localDimensions[%d] = %d\n",i,localDimensions[i] );
+  }
 
   SkipUntilEol( hpcgStream ); // skip the rest of the second line
 

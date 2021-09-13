@@ -137,6 +137,9 @@ int GMRES(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   for (int i = 0; i < nrow; i++) printf( "x[%d] = %e\n",i,x.values[i] );
 }*/
 
+    // do forward GS instead of symmetric GS
+    bool symmetric = false;
+
     // Start restart cycle
     int k = 1;
     SetMatrixValue(t, 0, 0, normr);
@@ -146,9 +149,9 @@ int GMRES(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
 
       TICK();
       if (doPreconditioning)
-        ComputeMG(A, Qkm1, z); // Apply preconditioner
+        ComputeMG(A, Qkm1, z, symmetric); // Apply preconditioner
       else
-        CopyVector(Qkm1, z);   // copy r to z (no preconditioning)
+        CopyVector(Qkm1, z);              // copy r to z (no preconditioning)
       TOCK(t5); // Preconditioner apply time
 
       // Qk = A*z
@@ -248,7 +251,7 @@ if (niters == 1) {
     ComputeTRSM(k-1, one, H, t);
     if (doPreconditioning) {
       ComputeGEMV (nrow, k-1, one, Q, t, zero, r); // r = Q*t
-      ComputeMG(A, r, z);                          // z = M*r
+      ComputeMG(A, r, z, symmetric);               // z = M*r
       TICK(); ComputeWAXPBY(nrow, one, x, one, z, x, A.isWaxpbyOptimized); TOCK(t2); // x += z
     } else {
       ComputeGEMV (nrow, k-1, one, Q, t, one, x); // x += Q*t

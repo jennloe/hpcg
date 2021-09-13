@@ -19,6 +19,7 @@
  */
 
 #include <fstream>
+#include <iostream>
 
 #include <cmath>
 
@@ -100,6 +101,7 @@ int CG_ref(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
 
   for (int k=1; k<=max_iter && normr/normr0 > tolerance; k++ ) {
     TICK();
+    //if (A.geom->rank==0) std::cout << " Precond:" << std::endl;
     if (doPreconditioning)
       ComputeMG_ref(A, r, z); // Apply preconditioner
     else

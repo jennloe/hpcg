@@ -64,7 +64,7 @@ int TestGMRES(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGDat
   CopyVector(origDiagA, exaggeratedDiagA);
   CopyVector(b, origB);
 
-#if 0
+#if 1
   if (A.geom->rank==0) HPCG_fout << std::endl << " ** skippping diagonal exaggeration ** " << std::endl << std::endl;
 #else
   // Modify the matrix diagonal to greatly exaggerate diagonal values.
@@ -87,14 +87,15 @@ int TestGMRES(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGDat
   int niters = 0;
   double normr = 0.0;
   double normr0 = 0.0;
-  int maxIters = 100000;
-  int numberOfCgCalls = 2;
+  int maxIters = 5000;
+  int numberOfCgCalls = 1;
   double tolerance = 1.0e-12; // Set tolerance to reasonable value for grossly scaled diagonal terms
   testcg_data.expected_niters_no_prec = 12; // For the unpreconditioned CG call, we should take about 10 iterations, permit 12
   testcg_data.expected_niters_prec = 2;   // For the preconditioned case, we should take about 1 iteration, permit 2
   testcg_data.niters_max_no_prec = 0;
   testcg_data.niters_max_prec = 0;
-  for (int k=0; k<2; ++k) { // This loop tests both unpreconditioned and preconditioned runs
+  for (int k=0; k<2; ++k)
+  { // This loop tests both unpreconditioned and preconditioned runs
     int expected_niters = testcg_data.expected_niters_no_prec;
     if (k==1) expected_niters = testcg_data.expected_niters_prec;
     for (int i=0; i< numberOfCgCalls; ++i) {

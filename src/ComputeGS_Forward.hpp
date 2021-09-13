@@ -12,11 +12,11 @@
 // ***************************************************
 //@HEADER
 
-#ifndef COMPUTEMG_REF_HPP
-#define COMPUTEMG_REF_HPP
+#ifndef COMPUTEGS_FORWARD_HPP
+#define COMPUTEGS_FORWARD_HPP
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-int ComputeMG_ref(const SparseMatrix  & A, const Vector & r, Vector & x, bool symmetric = true);
+int ComputeGS_Forward(const SparseMatrix  & A, const Vector & r, Vector & x);
 
-#endif // COMPUTEMG_REF_HPP
+#endif // COMPUTEGS_FORWARD_HPP

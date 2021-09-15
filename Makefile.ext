@@ -44,23 +44,39 @@ HPCG_DEPS = src/CG.o \
 	    src/OutputFile.o \
 	    src/GenerateCoarseProblem.o \
 	    src/init.o \
-	    src/finalize.o
+	    src/finalize.o \
+            \
+	    src/TestGMRES.o \
+	    src/GMRES.o \
+	    src/ComputeGS_Forward.o \
+	    src/ComputeGS_Forward_ref.o \
+	    src/ComputeTRSM.o \
+	    src/ComputeGEMV.o \
+	    src/GenerateNonsymProblem.o \
+	    src/GenerateNonsymProblem_ref.o \
+	    src/GenerateNonsymCoarseProblem.o \
 
 # These header files are included in many source files, so we recompile every file if one or more of these header is modified.
 PRIMARY_HEADERS = HPCG_SRC_PATH/src/Geometry.hpp HPCG_SRC_PATH/src/SparseMatrix.hpp HPCG_SRC_PATH/src/Vector.hpp HPCG_SRC_PATH/src/CGData.hpp \
                   HPCG_SRC_PATH/src/MGData.hpp HPCG_SRC_PATH/src/hpcg.hpp
 
-all: bin/xhpcg
+all: bin/xhpcg bin/xhpgmp
 
 bin/xhpcg: src/main.o $(HPCG_DEPS)
 	$(LINKER) $(LINKFLAGS) src/main.o $(HPCG_DEPS) $(HPCG_LIBS) -o bin/xhpcg
 
+bin/xhpgmp: src/main_hpgmp.o $(HPCG_DEPS)
+	$(LINKER) $(LINKFLAGS) src/main_hpgmp.o $(HPCG_DEPS) $(HPCG_LIBS) -o bin/xhpgmp
+
 clean:
-	rm -f src/*.o bin/xhpcg
+	rm -f src/*.o bin/xhpcg bin/xhpgmp
 
 .PHONY: all clean
 
 src/main.o: HPCG_SRC_PATH/src/main.cpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/main_hpgmp.o: HPCG_SRC_PATH/src/main_hpgmp.cpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/CG.o: HPCG_SRC_PATH/src/CG.cpp HPCG_SRC_PATH/src/CG.hpp $(PRIMARY_HEADERS)
@@ -178,5 +194,33 @@ src/CheckAspectRatio.o: HPCG_SRC_PATH/src/CheckAspectRatio.cpp HPCG_SRC_PATH/src
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/OutputFile.o: HPCG_SRC_PATH/src/OutputFile.cpp HPCG_SRC_PATH/src/OutputFile.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+
+src/GMRES.o: HPCG_SRC_PATH/src/GMRES.cpp HPCG_SRC_PATH/src/GMRES.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/TestGMRES.o: HPCG_SRC_PATH/src/TestGMRES.cpp HPCG_SRC_PATH/src/TestGMRES.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/ComputeGS_Forward.o: HPCG_SRC_PATH/src/ComputeGS_Forward.cpp HPCG_SRC_PATH/src/ComputeGS_Forward.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/ComputeGS_Forward_ref.o: HPCG_SRC_PATH/src/ComputeGS_Forward_ref.cpp HPCG_SRC_PATH/src/ComputeGS_Forward_ref.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/ComputeTRSM.o: HPCG_SRC_PATH/src/ComputeTRSM.cpp HPCG_SRC_PATH/src/ComputeTRSM.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/ComputeGEMV.o: HPCG_SRC_PATH/src/ComputeGEMV.cpp HPCG_SRC_PATH/src/ComputeGEMV.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/GenerateNonsymProblem.o: HPCG_SRC_PATH/src/GenerateNonsymProblem.cpp HPCG_SRC_PATH/src/GenerateNonsymProblem.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/GenerateNonsymProblem_ref.o: HPCG_SRC_PATH/src/GenerateNonsymProblem_ref.cpp HPCG_SRC_PATH/src/GenerateNonsymProblem_ref.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/GenerateNonsymCoarseProblem.o: HPCG_SRC_PATH/src/GenerateNonsymCoarseProblem.cpp HPCG_SRC_PATH/src/GenerateNonsymCoarseProblem.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 

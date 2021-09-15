@@ -16,5 +16,7 @@
 #define GENERATE_NONSYM_COARSEPROBLEM_HPP
 #include "SparseMatrix.hpp"
 
-void GenerateNonsymCoarseProblem(const SparseMatrix & A);
+template<class SparseMatrix_type>
+void GenerateNonsymCoarseProblem(const SparseMatrix_type & A);
+
 #endif // GENERATE_NONSYM_COARSEPROBLEM_HPP

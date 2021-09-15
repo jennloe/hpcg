@@ -20,17 +20,22 @@
 
 #include "ComputeTRSM.hpp"
 
-int ComputeTRSM(const local_int_t n, const double alpha, const SerialDenseMatrix & U, SerialDenseMatrix & x) {
+template<class SerialDenseMatrix_type>
+int ComputeTRSM(const local_int_t n,
+                const typename SerialDenseMatrix_type::scalar_type alpha,
+                const SerialDenseMatrix_type & U,
+                      SerialDenseMatrix_type & x) {
 
-  const double one = 1.0;
-  const double zero = 0.0;
+  typedef typename SerialDenseMatrix_type::scalar_type scalar_type;
+  const scalar_type one  (1.0);
+  const scalar_type zero (0.0);
 
   assert(x.m >= n);
   assert(x.n == 1); // one RHS
 
   const local_int_t m = U.m;
-  const double * const Uv = U.values;
-  double * xv = x.values;
+  const scalar_type * const Uv = U.values;
+  scalar_type * xv = x.values;
 
   for (local_int_t i = n-1; i >= 0; i--) {
     for (local_int_t j = i+1; j < n; j++)
@@ -39,3 +44,14 @@ int ComputeTRSM(const local_int_t n, const double alpha, const SerialDenseMatrix
   }
   return 0;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int ComputeTRSM< SerialDenseMatrix<double> >(int, double, SerialDenseMatrix<double> const&, SerialDenseMatrix<double>&);
+
+template
+int ComputeTRSM< SerialDenseMatrix<float> >(int, float, SerialDenseMatrix<float> const&, SerialDenseMatrix<float>&);

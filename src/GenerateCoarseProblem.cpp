@@ -38,7 +38,12 @@
 
 */
 
-void GenerateCoarseProblem(const SparseMatrix & Af) {
+template<class SparseMatrix_type>
+void GenerateCoarseProblem(const SparseMatrix_type & Af) {
+
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
+  typedef Vector<scalar_type> Vector_type;
+  typedef MGData<scalar_type> MGData_type;
 
   // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
   // below may result in global range values.
@@ -92,20 +97,34 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
   }
   GenerateGeometry(Af.geom->size, Af.geom->rank, Af.geom->numThreads, Af.geom->pz, zlc, zuc, nxc, nyc, nzc, Af.geom->npx, Af.geom->npy, Af.geom->npz, geomc);
 
-  SparseMatrix * Ac = new SparseMatrix;
+  bool init_vect = false;
+  Vector_type *tmp;
+  SparseMatrix_type * Ac = new SparseMatrix_type;
   InitializeSparseMatrix(*Ac, geomc);
-  GenerateProblem(*Ac, 0, 0, 0);
+  GenerateProblem(*Ac, tmp, tmp, tmp, init_vect);
   SetupHalo(*Ac);
-  Vector *rc = new Vector;
-  Vector *xc = new Vector;
-  Vector * Axf = new Vector;
+  Vector_type *rc = new Vector_type;
+  Vector_type *xc = new Vector_type;
+  Vector_type *Axf = new Vector_type;
   InitializeVector(*rc, Ac->localNumberOfRows);
   InitializeVector(*xc, Ac->localNumberOfColumns);
   InitializeVector(*Axf, Af.localNumberOfColumns);
   Af.Ac = Ac;
-  MGData * mgData = new MGData;
+  MGData_type * mgData = new MGData_type;
   InitializeMGData(f2cOperator, rc, xc, Axf, *mgData);
   Af.mgData = mgData;
 
   return;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+void GenerateCoarseProblem< SparseMatrix<double> >(SparseMatrix<double> const&);
+
+template
+void GenerateCoarseProblem< SparseMatrix<float> >(SparseMatrix<float> const&);
+

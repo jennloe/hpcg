@@ -57,12 +57,14 @@ using std::endl;
   @see ComputeMG
   @see ComputeMG_ref
 */
-int TestSymmetry(SparseMatrix & A, Vector & b, Vector & xexact, TestSymmetryData & testsymmetry_data) {
+template<class SparseMatrix_type, class Vector_type, class TestSymmetryData_type>
+int TestSymmetry(SparseMatrix_type & A, Vector_type & b, Vector_type & xexact, TestSymmetryData_type & testsymmetry_data) {
 
+ typedef typename SparseMatrix_type::scalar_type scalar_type;
  local_int_t nrow = A.localNumberOfRows;
  local_int_t ncol = A.localNumberOfColumns;
 
- Vector x_ncol, y_ncol, z_ncol;
+ Vector_type x_ncol, y_ncol, z_ncol;
  InitializeVector(x_ncol, ncol);
  InitializeVector(y_ncol, ncol);
  InitializeVector(z_ncol, ncol);
@@ -76,14 +78,14 @@ int TestSymmetry(SparseMatrix & A, Vector & b, Vector & xexact, TestSymmetryData
  FillRandomVector(x_ncol);
  FillRandomVector(y_ncol);
 
- double xNorm2, yNorm2;
- double ANorm = 2 * 26.0;
+ scalar_type xNorm2, yNorm2;
+ scalar_type ANorm (2 * 26.0);
 
  // Next, compute x'*A*y
  ComputeDotProduct(nrow, y_ncol, y_ncol, yNorm2, t4, A.isDotProductOptimized);
  int ierr = ComputeSPMV(A, y_ncol, z_ncol); // z_nrow = A*y_overlap
  if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
- double xtAy = 0.0;
+ scalar_type xtAy (0.0);
  ierr = ComputeDotProduct(nrow, x_ncol, z_ncol, xtAy, t4, A.isDotProductOptimized); // x'*A*y
  if (ierr) HPCG_fout << "Error in call to dot: " << ierr << ".\n" << endl;
 
@@ -91,7 +93,7 @@ int TestSymmetry(SparseMatrix & A, Vector & b, Vector & xexact, TestSymmetryData
  ComputeDotProduct(nrow, x_ncol, x_ncol, xNorm2, t4, A.isDotProductOptimized);
  ierr = ComputeSPMV(A, x_ncol, z_ncol); // b_computed = A*x_overlap
  if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
- double ytAx = 0.0;
+ scalar_type ytAx (0.0);
  ierr = ComputeDotProduct(nrow, y_ncol, z_ncol, ytAx, t4, A.isDotProductOptimized); // y'*A*x
  if (ierr) HPCG_fout << "Error in call to dot: " << ierr << ".\n" << endl;
 
@@ -104,14 +106,14 @@ int TestSymmetry(SparseMatrix & A, Vector & b, Vector & xexact, TestSymmetryData
  // Compute x'*Minv*y
  ierr = ComputeMG(A, y_ncol, z_ncol); // z_ncol = Minv*y_ncol
  if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
- double xtMinvy = 0.0;
+ scalar_type xtMinvy (0.0);
  ierr = ComputeDotProduct(nrow, x_ncol, z_ncol, xtMinvy, t4, A.isDotProductOptimized); // x'*Minv*y
  if (ierr) HPCG_fout << "Error in call to dot: " << ierr << ".\n" << endl;
 
  // Next, compute z'*Minv*x
  ierr = ComputeMG(A, x_ncol, z_ncol); // z_ncol = Minv*x_ncol
  if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
- double ytMinvx = 0.0;
+ scalar_type ytMinvx (0.0);
  ierr = ComputeDotProduct(nrow, y_ncol, z_ncol, ytMinvx, t4, A.isDotProductOptimized); // y'*Minv*x
  if (ierr) HPCG_fout << "Error in call to dot: " << ierr << ".\n" << endl;
 
@@ -122,7 +124,7 @@ int TestSymmetry(SparseMatrix & A, Vector & b, Vector & xexact, TestSymmetryData
  CopyVector(xexact, x_ncol); // Copy exact answer into overlap vector
 
  int numberOfCalls = 2;
- double residual = 0.0;
+ scalar_type residual (0.0);
  for (int i=0; i< numberOfCalls; ++i) {
    ierr = ComputeSPMV(A, x_ncol, z_ncol); // b_computed = A*x_overlap
    if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
@@ -136,4 +138,15 @@ int TestSymmetry(SparseMatrix & A, Vector & b, Vector & xexact, TestSymmetryData
 
  return 0;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int TestSymmetry< SparseMatrix<double>, Vector<double>, TestSymmetryData<double> >(SparseMatrix<double>&, Vector<double>&, Vector<double>&, TestSymmetryData<double>&);
+
+template
+int TestSymmetry< SparseMatrix<float>, Vector<float>, TestSymmetryData<float> >(SparseMatrix<float>&, Vector<float>&, Vector<float>&, TestSymmetryData<float>&);
 

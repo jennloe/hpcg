@@ -15,7 +15,9 @@
 #ifndef COMPUTEDOTPRODUCT_HPP
 #define COMPUTEDOTPRODUCT_HPP
 #include "Vector.hpp"
-int ComputeDotProduct(const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce, bool & isOptimized);
+
+template<class Vector_type>
+int ComputeDotProduct(const local_int_t n, const Vector_type & x, const Vector_type & y,
+                      typename Vector_type::scalar_type & result, double & time_allreduce, bool & isOptimized);
 
 #endif // COMPUTEDOTPRODUCT_HPP

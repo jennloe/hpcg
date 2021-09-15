@@ -47,8 +47,10 @@ using std::endl;
   @see GenerateGeometry
 */
 
-void CheckProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
+template<class SparseMatrix_type, class Vector_type>
+void CheckProblem(SparseMatrix_type & A, Vector_type * b, Vector_type * x, Vector_type * xexact) {
 
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
   // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
   // below may result in global range values.
   global_int_t nx = A.geom->nx;
@@ -64,9 +66,9 @@ void CheckProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
   local_int_t localNumberOfRows = nx*ny*nz; // This is the size of our subblock
   global_int_t totalNumberOfRows = gnx*gny*gnz; // Total number of grid points in mesh
 
-  double * bv = 0;
-  double * xv = 0;
-  double * xexactv = 0;
+  scalar_type * bv = 0;
+  scalar_type * xv = 0;
+  scalar_type * xexactv = 0;
   if (b!=0) bv = b->values; // Only compute exact solution if requested
   if (x!=0) xv = x->values; // Only compute exact solution if requested
   if (xexact!=0) xexactv = xexact->values; // Only compute exact solution if requested
@@ -89,7 +91,7 @@ void CheckProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
         HPCG_fout << " rank, globalRow, localRow = " << A.geom->rank << " " << currentGlobalRow << " " << A.globalToLocalMap.find(currentGlobalRow)->second << endl;
 #endif
         char numberOfNonzerosInRow = 0;
-        double * currentValuePointer = A.matrixValues[currentLocalRow]; // Pointer to current value in current row
+        scalar_type * currentValuePointer = A.matrixValues[currentLocalRow]; // Pointer to current value in current row
         global_int_t * currentIndexPointerG = A.mtxIndG[currentLocalRow]; // Pointer to current index in current row
         for (int sz=-1; sz<=1; sz++) {
           if (giz+sz>-1 && giz+sz<gnz) {
@@ -117,7 +119,7 @@ void CheckProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
         #pragma omp critical
 #endif
         localNumberOfNonzeros += numberOfNonzerosInRow; // Protect this with an atomic
-        if (b!=0)      assert(bv[currentLocalRow] == 26.0 - ((double) (numberOfNonzerosInRow-1)));
+        if (b!=0)      assert(bv[currentLocalRow] == 26.0 - ((scalar_type) (numberOfNonzerosInRow-1)));
         if (x!=0)      assert(xv[currentLocalRow] == 0.0);
         if (xexact!=0) assert(xexactv[currentLocalRow] == 1.0);
       } // end ix loop
@@ -149,3 +151,15 @@ void CheckProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
 
   return;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+void CheckProblem< SparseMatrix<double>, Vector<double> >(SparseMatrix<double>&, Vector<double>*, Vector<double>*, Vector<double>*);
+
+template
+void CheckProblem< SparseMatrix<float>, Vector<float> >(SparseMatrix<float>&, Vector<float>*, Vector<float>*, Vector<float>*);
+

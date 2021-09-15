@@ -50,13 +50,15 @@ using std::endl;
 
   @see CG()
  */
-int TestGMRES(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGData & testcg_data) {
+template<class SparseMatrix_type, class CGData_type, class Vector_type, class TestCGData_type>
+int TestGMRES(SparseMatrix_type & A, CGData_type & data, Vector_type & b, Vector_type & x, TestCGData_type & testcg_data) {
 
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
 
   // Use this array for collecting timing information
   std::vector< double > times(8,0.0);
   // Temporary storage for holding original diagonal and RHS
-  Vector origDiagA, exaggeratedDiagA, origB;
+  Vector_type origDiagA, exaggeratedDiagA, origB;
   InitializeVector(origDiagA, A.localNumberOfRows);
   InitializeVector(exaggeratedDiagA, A.localNumberOfRows);
   InitializeVector(origB, A.localNumberOfRows);
@@ -73,7 +75,7 @@ int TestGMRES(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGDat
   for (local_int_t i=0; i< A.localNumberOfRows; ++i) {
     global_int_t globalRowID = A.localToGlobalMap[i];
     if (globalRowID<9) {
-      double scale = (globalRowID+2)*1.0e6;
+      scalar_type scale = (globalRowID+2)*1.0e6;
       ScaleVectorValue(exaggeratedDiagA, i, scale);
       ScaleVectorValue(b, i, scale);
     } else {
@@ -85,11 +87,11 @@ int TestGMRES(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGDat
 #endif
 
   int niters = 0;
-  double normr = 0.0;
-  double normr0 = 0.0;
+  scalar_type normr (0.0);
+  scalar_type normr0 (0.0);
   int maxIters = 5000;
   int numberOfCgCalls = 1;
-  double tolerance = 1.0e-12; // Set tolerance to reasonable value for grossly scaled diagonal terms
+  scalar_type tolerance = 1.0e-12; // Set tolerance to reasonable value for grossly scaled diagonal terms
   testcg_data.expected_niters_no_prec = 12; // For the unpreconditioned CG call, we should take about 10 iterations, permit 12
   testcg_data.expected_niters_prec = 2;   // For the preconditioned case, we should take about 1 iteration, permit 2
   testcg_data.niters_max_no_prec = 0;
@@ -132,3 +134,16 @@ int TestGMRES(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGDat
 
   return 0;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int TestGMRES< SparseMatrix<double>, CGData<double>, Vector<double>, TestCGData<double> >
+  (SparseMatrix<double>&, CGData<double>&, Vector<double>&, Vector<double>&, TestCGData<double>&);
+
+template
+int TestGMRES< SparseMatrix<float>, CGData<float>, Vector<float>, TestCGData<float> >
+  (SparseMatrix<float>&, CGData<float>&, Vector<float>&, Vector<float>&, TestCGData<float>&);

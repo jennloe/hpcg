@@ -34,7 +34,8 @@
   @see GenerateGeometry
   @see GenerateProblem
 */
-int OptimizeProblem(SparseMatrix & A, CGData & data, Vector & b, Vector & x, Vector & xexact) {
+template<class SparseMatrix_type, class CGData_type, class Vector_type>
+int OptimizeProblem(SparseMatrix_type & A, CGData_type & data, Vector_type & b, Vector_type & x, Vector_type & xexact) {
 
   // This function can be used to completely transform any part of the data structures.
   // Right now it does nothing, so compiling with a check for unused variables results in complaints
@@ -100,8 +101,30 @@ int OptimizeProblem(SparseMatrix & A, CGData & data, Vector & b, Vector & x, Vec
 }
 
 // Helper function (see OptimizeProblem.hpp for details)
-double OptimizeProblemMemoryUse(const SparseMatrix & A) {
+template<class SparseMatrix_type>
+double OptimizeProblemMemoryUse(const SparseMatrix_type & A) {
 
   return 0.0;
 
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int OptimizeProblem< SparseMatrix<double>, CGData<double>, Vector<double> >
+  (SparseMatrix<double>&, CGData<double>&, Vector<double>&, Vector<double>&, Vector<double>&);
+
+template
+double OptimizeProblemMemoryUse< SparseMatrix<double> >
+  (SparseMatrix<double> const&);
+
+template
+int OptimizeProblem< SparseMatrix<float>, CGData<float>, Vector<float> >
+  (SparseMatrix<float>&, CGData<float>&, Vector<float>&, Vector<float>&, Vector<float>&);
+
+template
+double OptimizeProblemMemoryUse< SparseMatrix<float> >
+  (SparseMatrix<float> const&);

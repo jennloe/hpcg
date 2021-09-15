@@ -16,5 +16,8 @@
 #define COMPUTEPROLONGATION_REF_HPP
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
-int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf);
+
+template<class SparseMatrix_type, class Vector_type>
+int ComputeProlongation_ref(const SparseMatrix_type & Af, Vector_type & xf);
+
 #endif // COMPUTEPROLONGATION_REF_HPP

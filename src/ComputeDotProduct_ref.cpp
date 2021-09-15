@@ -26,6 +26,7 @@
 #include <omp.h>
 #endif
 #include <cassert>
+#include "Utils.hpp"
 #include "ComputeDotProduct_ref.hpp"
 
 /*!
@@ -43,14 +44,18 @@
 
   @see ComputeDotProduct
 */
-int ComputeDotProduct_ref(const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce) {
+template<class Vector_type>
+int ComputeDotProduct_ref(const local_int_t n, const Vector_type & x, const Vector_type & y,
+                          typename Vector_type::scalar_type & result, double & time_allreduce) {
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);
 
-  double local_result = 0.0;
-  double * xv = x.values;
-  double * yv = y.values;
+  typedef typename Vector_type::scalar_type scalar_type;
+  MPI_Datatype MPI_SCALAR_TYPE = MpiTypeTraits<scalar_type>::getType ();
+
+  scalar_type local_result (0.0);
+  scalar_type * xv = x.values;
+  scalar_type * yv = y.values;
   if (yv==xv) {
 #ifndef HPCG_NO_OPENMP
     #pragma omp parallel for reduction (+:local_result)
@@ -66,9 +71,9 @@ int ComputeDotProduct_ref(const local_int_t n, const Vector & x, const Vector & 
 #ifndef HPCG_NO_MPI
   // Use MPI's reduce function to collect all partial sums
   double t0 = mytimer();
-  double global_result = 0.0;
-  MPI_Allreduce(&local_result, &global_result, 1, MPI_DOUBLE, MPI_SUM,
-      MPI_COMM_WORLD);
+  scalar_type global_result (0.0);
+  MPI_Allreduce(&local_result, &global_result, 1, MPI_SCALAR_TYPE, MPI_SUM,
+                MPI_COMM_WORLD);
   result = global_result;
   time_allreduce += mytimer() - t0;
 #else
@@ -78,3 +83,14 @@ int ComputeDotProduct_ref(const local_int_t n, const Vector & x, const Vector & 
 
   return 0;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int ComputeDotProduct_ref<Vector<double> >(int, Vector<double> const&, Vector<double> const&, double&, double&);
+
+template
+int ComputeDotProduct_ref<Vector<float> >(int, Vector<float> const&, Vector<float> const&, float&, double&);

@@ -37,11 +37,14 @@
 
   @return Returns zero on success and a non-zero value otherwise.
 */
-int ComputeRestriction_ref(const SparseMatrix & A, const Vector & rf) {
+template<class SparseMatrix_type, class Vector_type>
+int ComputeRestriction_ref(const SparseMatrix_type & A, const Vector_type & rf) {
 
-  double * Axfv = A.mgData->Axf->values;
-  double * rfv = rf.values;
-  double * rcv = A.mgData->rc->values;
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
+
+  scalar_type * Axfv = A.mgData->Axf->values;
+  scalar_type * rfv = rf.values;
+  scalar_type * rcv = A.mgData->rc->values;
   local_int_t * f2c = A.mgData->f2cOperator;
   local_int_t nc = A.mgData->rc->localLength;
 
@@ -52,3 +55,16 @@ int ComputeRestriction_ref(const SparseMatrix & A, const Vector & rf) {
 
   return 0;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int ComputeRestriction_ref< SparseMatrix<double>, Vector<double> >(SparseMatrix<double> const&, Vector<double> const&);
+
+template
+int ComputeRestriction_ref< SparseMatrix<float>, Vector<float> >(SparseMatrix<float> const&, Vector<float> const&);
+
+

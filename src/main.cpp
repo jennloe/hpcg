@@ -70,6 +70,16 @@ using std::endl;
   @return Returns zero on success and a non-zero value otherwise.
 
 */
+
+//typedef float scalar_type;
+typedef double scalar_type;
+typedef Vector<scalar_type> Vector_type;
+typedef SparseMatrix<scalar_type> SparseMatrix_type;
+typedef CGData<scalar_type> CGData_type;
+typedef TestCGData<scalar_type> TestCGData_type;
+typedef TestSymmetryData<scalar_type> TestSymmetryData_type;
+typedef TestNormsData<scalar_type> TestNormsData_type;
+
 int main(int argc, char * argv[]) {
 
 #ifndef HPCG_NO_MPI
@@ -126,18 +136,19 @@ int main(int argc, char * argv[]) {
     return ierr;
 
   // Use this array for collecting timing information
-  std::vector< double > times(10,0.0);
+  std::vector<double> times(10,0.0);
 
   double setup_time = mytimer();
 
-  SparseMatrix A;
+  SparseMatrix_type A;
   InitializeSparseMatrix(A, geom);
 
-  Vector b, x, xexact;
-  GenerateProblem(A, &b, &x, &xexact);
+  bool init_vect = true;
+  Vector_type b, x, xexact;
+  GenerateProblem(A, &b, &x, &xexact, init_vect);
   SetupHalo(A);
   int numberOfMgLevels = 4; // Number of levels including first
-  SparseMatrix * curLevelMatrix = &A;
+  SparseMatrix_type * curLevelMatrix = &A;
   for (int level = 1; level< numberOfMgLevels; ++level) {
     GenerateCoarseProblem(*curLevelMatrix);
     curLevelMatrix = curLevelMatrix->Ac; // Make the just-constructed coarse grid the next level
@@ -147,9 +158,9 @@ int main(int argc, char * argv[]) {
   times[9] = setup_time; // Save it for reporting
 
   curLevelMatrix = &A;
-  Vector * curb = &b;
-  Vector * curx = &x;
-  Vector * curxexact = &xexact;
+  Vector_type * curb = &b;
+  Vector_type * curx = &x;
+  Vector_type * curxexact = &xexact;
   for (int level = 0; level< numberOfMgLevels; ++level) {
      CheckProblem(*curLevelMatrix, curb, curx, curxexact);
      curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
@@ -159,7 +170,7 @@ int main(int argc, char * argv[]) {
   }
 
 
-  CGData data;
+  CGData_type data;
   InitializeSparseCGData(A, data);
 
 
@@ -173,7 +184,7 @@ int main(int argc, char * argv[]) {
   local_int_t nrow = A.localNumberOfRows;
   local_int_t ncol = A.localNumberOfColumns;
 
-  Vector x_overlap, b_computed;
+  Vector_type x_overlap, b_computed;
   InitializeVector(x_overlap, ncol); // Overlapped copy of x vector
   InitializeVector(b_computed, nrow); // Computed RHS vector
 
@@ -207,14 +218,14 @@ int main(int argc, char * argv[]) {
 
   int niters = 0;
   int totalNiters_ref = 0;
-  double normr = 0.0;
-  double normr0 = 0.0;
+  scalar_type normr = 0.0;
+  scalar_type normr0 = 0.0;
   int refMaxIters = 50;
   numberOfCalls = 1; // Only need to run the residual reduction analysis once
 
   // Compute the residual reduction for the natural ordering and reference kernels
   std::vector< double > ref_times(9,0.0);
-  double tolerance = 0.0; // Set tolerance to zero to make all runs do maxIters iterations
+  scalar_type tolerance = 0.0; // Set tolerance to zero to make all runs do maxIters iterations
   int err_count = 0;
   for (int i=0; i< numberOfCalls; ++i) {
     ZeroVector(x);
@@ -223,7 +234,7 @@ int main(int argc, char * argv[]) {
     totalNiters_ref += niters;
   }
   if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to reference CG." << endl;
-  double refTolerance = normr / normr0;
+  scalar_type refTolerance = normr / normr0;
 
   // Call user-tunable set up function.
   double t7 = mytimer();
@@ -246,11 +257,11 @@ int main(int argc, char * argv[]) {
 #ifdef HPCG_DEBUG
   t1 = mytimer();
 #endif
-  TestCGData testcg_data;
+  TestCGData_type testcg_data;
   testcg_data.count_pass = testcg_data.count_fail = 0;
   TestCG(A, data, b, x, testcg_data);
 
-  TestSymmetryData testsymmetry_data;
+  TestSymmetryData_type testsymmetry_data;
   TestSymmetry(A, b, xexact, testsymmetry_data);
 
 #ifdef HPCG_DEBUG
@@ -326,10 +337,10 @@ int main(int argc, char * argv[]) {
   /* This is the timed run for a specified amount of time. */
 
   optMaxIters = optNiters;
-  double optTolerance = 0.0;  // Force optMaxIters iterations
-  TestNormsData testnorms_data;
+  scalar_type optTolerance = 0.0;  // Force optMaxIters iterations
+  TestNormsData_type testnorms_data;
   testnorms_data.samples = numberOfCgSets;
-  testnorms_data.values = new double[numberOfCgSets];
+  testnorms_data.values = new scalar_type[numberOfCgSets];
 
   for (int i=0; i< numberOfCgSets; ++i) {
     ZeroVector(x); // Zero out x
@@ -342,7 +353,7 @@ int main(int argc, char * argv[]) {
   // Compute difference between known exact solution and computed solution
   // All processors are needed here.
 #ifdef HPCG_DEBUG
-  double residual = 0;
+  scalar_type residual = 0;
   ierr = ComputeResidual(A.localNumberOfRows, x, xexact, residual);
   if (ierr) HPCG_fout << "Error in call to compute_residual: " << ierr << ".\n" << endl;
   if (rank==0) HPCG_fout << "Difference between computed and exact  = " << residual << ".\n" << endl;

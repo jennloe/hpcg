@@ -51,25 +51,27 @@
 
   @see ComputeSYMGS
 */
-int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
+template<class SparseMatrix_type, class Vector_type>
+int ComputeSYMGS_ref(const SparseMatrix_type & A, const Vector_type & r, Vector_type & x) {
 
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
 #ifndef HPCG_NO_MPI
   ExchangeHalo(A,x);
 #endif
 
   const local_int_t nrow = A.localNumberOfRows;
-  double ** matrixDiagonal = A.matrixDiagonal;  // An array of pointers to the diagonal entries A.matrixValues
-  const double * const rv = r.values;
-  double * const xv = x.values;
+  scalar_type ** matrixDiagonal = A.matrixDiagonal;  // An array of pointers to the diagonal entries A.matrixValues
+  const scalar_type * const rv = r.values;
+  scalar_type * const xv = x.values;
 
   for (local_int_t i=0; i< nrow; i++) {
-    const double * const currentValues = A.matrixValues[i];
+    const scalar_type * const currentValues = A.matrixValues[i];
     const local_int_t * const currentColIndices = A.mtxIndL[i];
     const int currentNumberOfNonzeros = A.nonzerosInRow[i];
-    const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
-    double sum = rv[i]; // RHS value
+    const scalar_type currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
+    scalar_type sum = rv[i]; // RHS value
 
     for (int j=0; j< currentNumberOfNonzeros; j++) {
       local_int_t curCol = currentColIndices[j];
@@ -84,11 +86,11 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   // Now the back sweep.
 
   for (local_int_t i=nrow-1; i>=0; i--) {
-    const double * const currentValues = A.matrixValues[i];
+    const scalar_type * const currentValues = A.matrixValues[i];
     const local_int_t * const currentColIndices = A.mtxIndL[i];
     const int currentNumberOfNonzeros = A.nonzerosInRow[i];
-    const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
-    double sum = rv[i]; // RHS value
+    const scalar_type currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
+    scalar_type sum = rv[i]; // RHS value
 
     for (int j = 0; j< currentNumberOfNonzeros; j++) {
       local_int_t curCol = currentColIndices[j];
@@ -101,4 +103,15 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
 
   return 0;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int ComputeSYMGS_ref< SparseMatrix<double>, Vector<double> >(SparseMatrix<double> const&, Vector<double> const&, Vector<double>&);
+
+template
+int ComputeSYMGS_ref< SparseMatrix<float>, Vector<float> >(SparseMatrix<float> const&, Vector<float> const&, Vector<float>&);
 

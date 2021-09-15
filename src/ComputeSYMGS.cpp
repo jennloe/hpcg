@@ -47,7 +47,8 @@
 
   @see ComputeSYMGS_ref
 */
-int ComputeSYMGS( const SparseMatrix & A, const Vector & r, Vector & x) {
+template<class SparseMatrix_type, class Vector_type>
+int ComputeSYMGS(const SparseMatrix_type & A, const Vector_type & r, Vector_type & x) {
 
   // This line and the next two lines should be removed and your version of ComputeSYMGS should be used.
   return ComputeSYMGS_ref(A, r, x);

@@ -41,12 +41,25 @@
   @see GenerateGeometry
 */
 
-void GenerateNonsymProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
+template<class SparseMatrix_type, class Vector_type>
+void GenerateNonsymProblem(SparseMatrix_type & A, Vector_type * b, Vector_type * x, Vector_type * xexact, bool init_vect) {
 
   // The call to this reference version of GenerateProblem can be replaced with custom code.
   // However, the data structures must remain unchanged such that the CheckProblem function is satisfied.
   // Furthermore, any code must work for general unstructured sparse matrices.  Special knowledge about the
   // specific nature of the sparsity pattern may not be explicitly used.
 
-  return(GenerateNonsymProblem_ref(A, b, x, xexact));
+  return(GenerateNonsymProblem_ref(A, b, x, xexact, init_vect));
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+void GenerateNonsymProblem< SparseMatrix<double>, Vector<double> >(SparseMatrix<double>&, Vector<double>*, Vector<double>*, Vector<double>*, bool);
+
+template
+void GenerateNonsymProblem< SparseMatrix<float>, Vector<float> >(SparseMatrix<float>&, Vector<float>*, Vector<float>*, Vector<float>*, bool);
+

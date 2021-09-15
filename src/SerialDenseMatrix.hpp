@@ -24,18 +24,20 @@
 #include <cassert>
 #include <cstdlib>
 
-struct Matrix_STRUCT {
+template<class SC>
+class SerialDenseMatrix {
+public:
+  typedef SC scalar_type;
+
   local_int_t m;            //!< number of rows
   local_int_t n;            //!< number of columns
-  double * values;          //!< array of values
+  SC * values;          //!< array of values
   /*!
    This is for storing optimized data structures created in OptimizeProblem and
    used inside optimized ComputeSPMV().
    */
   void * optimizationData;
-
 };
-typedef struct Matrix_STRUCT SerialDenseMatrix;
 
 /*!
   Initializes input vector.
@@ -44,10 +46,14 @@ typedef struct Matrix_STRUCT SerialDenseMatrix;
   @param[in] m   Number of rows
   @param[in] n   Number of columns
  */
-inline void InitializeMatrix(SerialDenseMatrix & A, local_int_t m, local_int_t n) {
+template<class SerialDenseMatrix_type>
+inline void InitializeMatrix(SerialDenseMatrix_type & A, local_int_t m, local_int_t n) {
+
+  typedef typename SerialDenseMatrix_type::scalar_type scalar_type;
+
   A.m   = m;
   A.n   = n;
-  A.values = new double[m*n];
+  A.values = new scalar_type[m*n];
   A.optimizationData = 0;
   return;
 }
@@ -58,13 +64,18 @@ inline void InitializeMatrix(SerialDenseMatrix & A, local_int_t m, local_int_t n
 
   @param[inout] A - On entrance A is initialized, on exit all its values are zero.
  */
-inline void ZeroMatrix(SerialDenseMatrix & A) {
+template<class SerialDenseMatrix_type>
+inline void ZeroMatrix(SerialDenseMatrix_type & A) {
+
+  typedef typename SerialDenseMatrix_type::scalar_type scalar_type;
+  const scalar_type zero (0.0);
 
   local_int_t m = A.m;
   local_int_t n = A.n;
-  double * val  = A.values;
+  scalar_type* val = A.values;
+
   for (int i=0; i<m*n; ++i) 
-    val[i] = 0.0;
+    val[i] = zero;
   return;
 }
 
@@ -74,30 +85,43 @@ inline void ZeroMatrix(SerialDenseMatrix & A) {
   @param[in] A Input vector
   @param[in] B Output vector
  */
-inline void CopyMatrix(const SerialDenseMatrix & A, SerialDenseMatrix & B) {
+template<class SerialDenseMatrix_type>
+inline void CopyMatrix(const SerialDenseMatrix_type & A, SerialDenseMatrix_type & B) {
+
+  typedef typename SerialDenseMatrix_type::scalar_type scalar_type;
+
   local_int_t m = A.m;
   local_int_t n = A.n;
   assert(B.m >= m);
   assert(A.n >= n);
-  double * val_in  = A.values;
-  double * val_out = B.values;
+  scalar_type * val_in  = A.values;
+  scalar_type * val_out = B.values;
   for (int i=0; i<m*n; ++i)
     val_out[i] = val_in[i];
   return;
 }
 
-inline void SetMatrixValue(SerialDenseMatrix & A, local_int_t i, local_int_t j, double value) {
+template<class SerialDenseMatrix_type>
+inline void SetMatrixValue(SerialDenseMatrix_type & A, local_int_t i, local_int_t j, typename SerialDenseMatrix_type::scalar_type value) {
+
+  typedef typename SerialDenseMatrix_type::scalar_type scalar_type;
+
   assert(i>=0 && i < A.m);
   assert(j>=0 && j < A.n);
-  double * vv = A.values;
+  scalar_type * vv = A.values;
   vv[i + j*A.m] = value;
   return;
 }
 
-inline double GetMatrixValue(SerialDenseMatrix & A, local_int_t i, local_int_t j) {
+template<class SerialDenseMatrix_type>
+inline typename SerialDenseMatrix_type::scalar_type
+GetMatrixValue(SerialDenseMatrix_type & A, local_int_t i, local_int_t j) {
+
+  typedef typename SerialDenseMatrix_type::scalar_type scalar_type;
+
   assert(i>=0 && i < A.m);
   assert(j>=0 && j < A.n);
-  double * vv = A.values;
+  scalar_type * vv = A.values;
   return vv[i + j*A.m];
 }
 
@@ -106,7 +130,8 @@ inline double GetMatrixValue(SerialDenseMatrix & A, local_int_t i, local_int_t j
 
   @param[in] A the known system matrix
  */
-inline void DeleteVector(SerialDenseMatrix & A) {
+template<class SerialDenseMatrix_type>
+inline void DeleteSerialDenseMatrix(SerialDenseMatrix_type & A) {
 
   delete [] A.values;
   A.m = 0;

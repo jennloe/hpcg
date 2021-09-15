@@ -21,6 +21,7 @@
 // Compile this routine only if running with MPI
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
+#include "Utils.hpp"
 #include "Geometry.hpp"
 #include "ExchangeHalo.hpp"
 #include <cstdlib>
@@ -31,20 +32,23 @@
   @param[in]    A The known system matrix
   @param[inout] x On entry: the local vector entries followed by entries to be communicated; on exit: the vector with non-local entries updated by other processors
  */
-void ExchangeHalo(const SparseMatrix & A, Vector & x) {
+template<class SparseMatrix_type, class Vector_type>
+void ExchangeHalo(const SparseMatrix_type & A, Vector_type & x) {
+
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
+  MPI_Datatype MPI_SCALAR_TYPE = MpiTypeTraits<scalar_type>::getType ();
 
   // Extract Matrix pieces
-
   local_int_t localNumberOfRows = A.localNumberOfRows;
   int num_neighbors = A.numberOfSendNeighbors;
   local_int_t * receiveLength = A.receiveLength;
   local_int_t * sendLength = A.sendLength;
   int * neighbors = A.neighbors;
-  double * sendBuffer = A.sendBuffer;
+  scalar_type * sendBuffer = A.sendBuffer;
   local_int_t totalToBeSent = A.totalToBeSent;
   local_int_t * elementsToSend = A.elementsToSend;
 
-  double * const xv = x.values;
+  scalar_type * const xv = x.values;
 
   int size, rank; // Number of MPI processes, My process ID
   MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -63,13 +67,13 @@ void ExchangeHalo(const SparseMatrix & A, Vector & x) {
   //
   // Externals are at end of locals
   //
-  double * x_external = (double *) xv + localNumberOfRows;
+  scalar_type * x_external = (scalar_type *) xv + localNumberOfRows;
 
   // Post receives first
   // TODO: Thread this loop
   for (int i = 0; i < num_neighbors; i++) {
     local_int_t n_recv = receiveLength[i];
-    MPI_Irecv(x_external, n_recv, MPI_DOUBLE, neighbors[i], MPI_MY_TAG, MPI_COMM_WORLD, request+i);
+    MPI_Irecv(x_external, n_recv, MPI_SCALAR_TYPE, neighbors[i], MPI_MY_TAG, MPI_COMM_WORLD, request+i);
     x_external += n_recv;
   }
 
@@ -88,7 +92,7 @@ void ExchangeHalo(const SparseMatrix & A, Vector & x) {
   // TODO: Thread this loop
   for (int i = 0; i < num_neighbors; i++) {
     local_int_t n_send = sendLength[i];
-    MPI_Send(sendBuffer, n_send, MPI_DOUBLE, neighbors[i], MPI_MY_TAG, MPI_COMM_WORLD);
+    MPI_Send(sendBuffer, n_send, MPI_SCALAR_TYPE, neighbors[i], MPI_MY_TAG, MPI_COMM_WORLD);
     sendBuffer += n_send;
   }
 
@@ -108,5 +112,17 @@ void ExchangeHalo(const SparseMatrix & A, Vector & x) {
 
   return;
 }
-#endif
-// ifndef HPCG_NO_MPI
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+void ExchangeHalo< SparseMatrix<double>, Vector<double> >(SparseMatrix<double> const&, Vector<double>&);
+
+template
+void ExchangeHalo< SparseMatrix<float>, Vector<float> >(SparseMatrix<float> const&, Vector<float>&);
+
+
+#endif // ifndef HPCG_NO_MPI

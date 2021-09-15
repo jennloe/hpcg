@@ -24,13 +24,14 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-struct CGData_STRUCT {
-  Vector r; //!< pointer to residual vector
-  Vector z; //!< pointer to preconditioned residual vector
-  Vector p; //!< pointer to direction vector
-  Vector Ap; //!< pointer to Krylov vector
+template <class SC>
+class CGData {
+public:
+  Vector<SC> r; //!< pointer to residual vector
+  Vector<SC> z; //!< pointer to preconditioned residual vector
+  Vector<SC> p; //!< pointer to direction vector
+  Vector<SC> Ap; //!< pointer to Krylov vector
 };
-typedef struct CGData_STRUCT CGData;
 
 /*!
  Constructor for the data structure of CG vectors.
@@ -38,7 +39,8 @@ typedef struct CGData_STRUCT CGData;
  @param[in]  A    the data structure that describes the problem matrix and its structure
  @param[out] data the data structure for CG vectors that will be allocated to get it ready for use in CG iterations
  */
-inline void InitializeSparseCGData(SparseMatrix & A, CGData & data) {
+template <class SparseMatrix_type, class CGData_type>
+inline void InitializeSparseCGData(SparseMatrix_type & A, CGData_type & data) {
   local_int_t nrow = A.localNumberOfRows;
   local_int_t ncol = A.localNumberOfColumns;
   InitializeVector(data.r, nrow);
@@ -53,7 +55,8 @@ inline void InitializeSparseCGData(SparseMatrix & A, CGData & data) {
 
  @param[inout] data the CG vectors data structure whose storage is deallocated
  */
-inline void DeleteCGData(CGData & data) {
+template <class CGData_type>
+inline void DeleteCGData(CGData_type & data) {
 
   DeleteVector (data.r);
   DeleteVector (data.z);

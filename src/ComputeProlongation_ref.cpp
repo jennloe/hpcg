@@ -35,10 +35,13 @@
 
   @return Returns zero on success and a non-zero value otherwise.
 */
-int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf) {
+template<class SparseMatrix_type, class Vector_type>
+int ComputeProlongation_ref(const SparseMatrix_type & Af, Vector_type & xf) {
 
-  double * xfv = xf.values;
-  double * xcv = Af.mgData->xc->values;
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
+
+  scalar_type * xfv = xf.values;
+  scalar_type * xcv = Af.mgData->xc->values;
   local_int_t * f2c = Af.mgData->f2cOperator;
   local_int_t nc = Af.mgData->rc->localLength;
 
@@ -50,3 +53,14 @@ int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf) {
 
   return 0;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int ComputeProlongation_ref< SparseMatrix<double>, Vector<double> >(SparseMatrix<double> const&, Vector<double>&);
+
+template
+int ComputeProlongation_ref< SparseMatrix<float>, Vector<float> >(SparseMatrix<float> const&, Vector<float>&);

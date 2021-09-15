@@ -48,7 +48,13 @@ using std::endl;
   @see GenerateGeometry
 */
 
-void GenerateNonsymProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
+template<class SparseMatrix_type, class Vector_type>
+void GenerateNonsymProblem_ref(SparseMatrix_type & A, Vector_type * b, Vector_type * x, Vector_type * xexact, bool init_vect) {
+
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
+  const scalar_type zero (0.0);
+  const scalar_type one  (1.0);
+  const scalar_type two = one + one;
 
   // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
   // below may result in global range values.
@@ -76,18 +82,20 @@ void GenerateNonsymProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector 
   char * nonzerosInRow = new char[localNumberOfRows];
   global_int_t ** mtxIndG = new global_int_t*[localNumberOfRows];
   local_int_t  ** mtxIndL = new local_int_t*[localNumberOfRows];
-  double ** matrixValues = new double*[localNumberOfRows];
-  double ** matrixDiagonal = new double*[localNumberOfRows];
+  scalar_type ** matrixValues = new scalar_type*[localNumberOfRows];
+  scalar_type ** matrixDiagonal = new scalar_type*[localNumberOfRows];
 
-  if (b!=0) InitializeVector(*b, localNumberOfRows);
-  if (x!=0) InitializeVector(*x, localNumberOfRows);
-  if (xexact!=0) InitializeVector(*xexact, localNumberOfRows);
-  double * bv = 0;
-  double * xv = 0;
-  double * xexactv = 0;
-  if (b!=0) bv = b->values; // Only compute exact solution if requested
-  if (x!=0) xv = x->values; // Only compute exact solution if requested
-  if (xexact!=0) xexactv = xexact->values; // Only compute exact solution if requested
+  scalar_type * bv = 0;
+  scalar_type * xv = 0;
+  scalar_type * xexactv = 0;
+  if (init_vect) {
+    InitializeVector(*b, localNumberOfRows);
+    InitializeVector(*x, localNumberOfRows);
+    InitializeVector(*xexact, localNumberOfRows);
+    bv = b->values; // Only compute exact solution if requested
+    xv = x->values; // Only compute exact solution if requested
+    xexactv = xexact->values; // Only compute exact solution if requested
+  }
   A.localToGlobalMap.resize(localNumberOfRows);
 
   // Use a parallel loop to do initial assignment:
@@ -107,14 +115,14 @@ void GenerateNonsymProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector 
   for (local_int_t i=0; i< localNumberOfRows; ++i)
     mtxIndL[i] = new local_int_t[numberOfNonzerosPerRow];
   for (local_int_t i=0; i< localNumberOfRows; ++i)
-    matrixValues[i] = new double[numberOfNonzerosPerRow];
+    matrixValues[i] = new scalar_type[numberOfNonzerosPerRow];
   for (local_int_t i=0; i< localNumberOfRows; ++i)
    mtxIndG[i] = new global_int_t[numberOfNonzerosPerRow];
 
 #else
   // Now allocate the arrays pointed to
   mtxIndL[0] = new local_int_t[localNumberOfRows * numberOfNonzerosPerRow];
-  matrixValues[0] = new double[localNumberOfRows * numberOfNonzerosPerRow];
+  matrixValues[0] = new scalar_type[localNumberOfRows * numberOfNonzerosPerRow];
   mtxIndG[0] = new global_int_t[localNumberOfRows * numberOfNonzerosPerRow];
 
   for (local_int_t i=1; i< localNumberOfRows; ++i) {
@@ -124,10 +132,8 @@ void GenerateNonsymProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector 
   }
 #endif
 
-  const double one = 1.0;
-  const double two = one + one;
-  double beta = 100.0;
-  double gamma = 1.0 / beta; //one;
+  scalar_type beta (1.0);
+  scalar_type gamma (10.0); //one;
   local_int_t localNumberOfNonzeros = 0;
   // TODO:  This triply nested loop could be flattened or use nested parallelism
 #ifndef HPCG_NO_OPENMP
@@ -153,8 +159,8 @@ void GenerateNonsymProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector 
         HPCG_fout << " rank, globalRow, localRow = " << A.geom->rank << " " << currentGlobalRow << " " << A.globalToLocalMap[currentGlobalRow] << endl;
 #endif
         char numberOfNonzerosInRow = 0;
-        double * currentValuePointer = matrixValues[currentLocalRow]; // Pointer to current value in current row
-        double bi = 0.0;
+        scalar_type * currentValuePointer = matrixValues[currentLocalRow]; // Pointer to current value in current row
+        scalar_type bi (0.0);
         global_int_t * currentIndexPointerG = mtxIndG[currentLocalRow]; // Pointer to current index in current row
         for (int sz=-1; sz<=1; sz++) {
           int jz = iz+sz;
@@ -172,12 +178,12 @@ void GenerateNonsymProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector 
                     } else {
                       *currentValuePointer = 1.0;
                     }
-                    double beta_i = sqrt(one + beta*(((double)(gix0+ix))/((double)(gnx-1)))) *
-                                    sqrt(one + beta*(((double)(giy0+iy))/((double)(gny-1)))) *
-                                    sqrt(one + beta*(((double)(giz0+iz))/((double)(gnz-1))));
-                    double beta_j = sqrt(one + beta*(((double)(gix0+jx))/((double)(gnx-1)))) *
-                                    sqrt(one + beta*(((double)(giy0+jy))/((double)(gny-1)))) *
-                                    sqrt(one + beta*(((double)(giz0+jz))/((double)(gnz-1))));
+                    scalar_type beta_i = sqrt(one + beta*(((scalar_type)(gix0+ix))/((scalar_type)(gnx-1)))) *
+                                         sqrt(one + beta*(((scalar_type)(giy0+iy))/((scalar_type)(gny-1)))) *
+                                         sqrt(one + beta*(((scalar_type)(giz0+iz))/((scalar_type)(gnz-1))));
+                    scalar_type beta_j = sqrt(one + beta*(((scalar_type)(gix0+jx))/((scalar_type)(gnx-1)))) *
+                                         sqrt(one + beta*(((scalar_type)(giy0+jy))/((scalar_type)(gny-1)))) *
+                                         sqrt(one + beta*(((scalar_type)(giz0+jz))/((scalar_type)(gnz-1))));
                     *currentValuePointer *= (beta_i * beta_j);
                     if (sy == 0 && sz == 0) {
                       if (sx == 1) {
@@ -202,9 +208,11 @@ void GenerateNonsymProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector 
         #pragma omp critical
 #endif
         localNumberOfNonzeros += numberOfNonzerosInRow; // Protect this with an atomic
-        if (b!=0)      bv[currentLocalRow] = bi; //26.0 - ((double) (numberOfNonzerosInRow-1));
-        if (x!=0)      xv[currentLocalRow] = 0.0;
-        if (xexact!=0) xexactv[currentLocalRow] = 1.0;
+        if (init_vect) {
+          bv[currentLocalRow] = bi; //26.0 - ((double) (numberOfNonzerosInRow-1));
+          xv[currentLocalRow] = zero;
+          xexactv[currentLocalRow] = one;
+        }
       } // end ix loop
     } // end iy loop
   } // end iz loop
@@ -245,3 +253,15 @@ void GenerateNonsymProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector 
 
   return;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+void GenerateNonsymProblem_ref< SparseMatrix<double>, Vector<double> >(SparseMatrix<double>&, Vector<double>*, Vector<double>*, Vector<double>*, bool);
+
+template
+void GenerateNonsymProblem_ref< SparseMatrix<float>, Vector<float> >(SparseMatrix<float>&, Vector<float>*, Vector<float>*, Vector<float>*, bool);
+

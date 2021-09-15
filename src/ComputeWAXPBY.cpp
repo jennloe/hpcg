@@ -39,10 +39,27 @@
 
   @see ComputeWAXPBY_ref
 */
-int ComputeWAXPBY(const local_int_t n, const double alpha, const Vector & x,
-    const double beta, const Vector & y, Vector & w, bool & isOptimized) {
+template<class Vector_type>
+int ComputeWAXPBY(const local_int_t n,
+                  const typename Vector_type::scalar_type alpha,
+                  const Vector_type & x,
+                  const typename Vector_type::scalar_type beta,
+                  const Vector_type & y,
+                        Vector_type & w,
+                        bool & isOptimized) {
 
   // This line and the next two lines should be removed and your version of ComputeWAXPBY should be used.
   isOptimized = false;
   return ComputeWAXPBY_ref(n, alpha, x, beta, y, w);
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int ComputeWAXPBY< Vector<double> >(int, double, Vector<double> const&, double, Vector<double> const&, Vector<double>&, bool&);
+
+template
+int ComputeWAXPBY< Vector<float> >(int, float, Vector<float> const&, float, Vector<float> const&, Vector<float>&, bool&);

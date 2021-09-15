@@ -17,5 +17,7 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-void CheckProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact);
+template <class SparseMatrix_type, class Vector_type>
+void CheckProblem(SparseMatrix_type & A, Vector_type * b, Vector_type * x, Vector_type * xexact);
+
 #endif // CHECKPROBLEM_HPP

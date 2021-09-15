@@ -39,15 +39,20 @@
 
   @see ComputeWAXPBY
 */
-int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Vector & x,
-    const double beta, const Vector & y, Vector & w) {
-
+template<class Vector_type>
+int ComputeWAXPBY_ref(const local_int_t n,
+                      const typename Vector_type::scalar_type alpha,
+                      const Vector_type & x,
+                      const typename Vector_type::scalar_type beta,
+                      const Vector_type & y,
+                            Vector_type & w) {
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);
 
-  const double * const xv = x.values;
-  const double * const yv = y.values;
-  double * const wv = w.values;
+  typedef typename Vector_type::scalar_type scalar_type;
+  const scalar_type * const xv = x.values;
+  const scalar_type * const yv = y.values;
+  scalar_type * const wv = w.values;
 
   if (alpha==1.0) {
 #ifndef HPCG_NO_OPENMP
@@ -68,3 +73,14 @@ int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Vector & x,
 
   return 0;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int ComputeWAXPBY_ref< Vector<double> >(int, double, Vector<double> const&, double, Vector<double> const&, Vector<double>&);
+
+template
+int ComputeWAXPBY_ref< Vector<float> >(int, float, Vector<float> const&, float, Vector<float> const&, Vector<float>&);

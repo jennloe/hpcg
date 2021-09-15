@@ -44,23 +44,25 @@
 
   @see ComputeSPMV
 */
-int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
+template<class SparseMatrix_type, class Vector_type>
+int ComputeSPMV_ref(const SparseMatrix_type & A, Vector_type & x, Vector_type & y) {
 
   assert(x.localLength>=A.localNumberOfColumns); // Test vector lengths
   assert(y.localLength>=A.localNumberOfRows);
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
 
 #ifndef HPCG_NO_MPI
     ExchangeHalo(A,x);
 #endif
-  const double * const xv = x.values;
-  double * const yv = y.values;
+  const scalar_type * const xv = x.values;
+  scalar_type * const yv = y.values;
   const local_int_t nrow = A.localNumberOfRows;
 #ifndef HPCG_NO_OPENMP
   #pragma omp parallel for
 #endif
   for (local_int_t i=0; i< nrow; i++)  {
-    double sum = 0.0;
-    const double * const cur_vals = A.matrixValues[i];
+    scalar_type sum = 0.0;
+    const scalar_type * const cur_vals = A.matrixValues[i];
     const local_int_t * const cur_inds = A.mtxIndL[i];
     const int cur_nnz = A.nonzerosInRow[i];
 
@@ -70,3 +72,15 @@ int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
   }
   return 0;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int ComputeSPMV_ref< SparseMatrix<double>, Vector<double> >(SparseMatrix<double> const&, Vector<double>&, Vector<double>&);
+
+template
+int ComputeSPMV_ref< SparseMatrix<float>, Vector<float> >(SparseMatrix<float> const&, Vector<float>&, Vector<float>&);
+

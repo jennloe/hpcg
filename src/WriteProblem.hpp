@@ -17,5 +17,7 @@
 #include "Geometry.hpp"
 #include "SparseMatrix.hpp"
 
-int WriteProblem( const Geometry & geom, const SparseMatrix & A, const Vector b, const Vector x, const Vector xexact);
+template<class SparseMatrix_type, class Vector_type>
+int WriteProblem(const Geometry & geom, const SparseMatrix_type & A, const Vector_type b, const Vector_type x, const Vector_type xexact);
+
 #endif // WRITEPROBLEM_HPP

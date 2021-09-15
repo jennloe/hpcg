@@ -58,35 +58,42 @@
 
   @see CG_ref()
 */
-int GMRES(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
-          const int max_iter, const double tolerance, int & niters, double & normr, double & normr0,
+template<class SparseMatrix_type, class CGData_type, class Vector_type>
+int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b, Vector_type & x,
+          const int max_iter, const typename SparseMatrix_type::scalar_type tolerance, int & niters,
+          typename SparseMatrix_type::scalar_type & normr,  typename SparseMatrix_type::scalar_type & normr0,
           double * times, bool doPreconditioning) {
 
-  const double one  = 1.0;
-  const double zero = 0.0;
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
+  typedef MultiVector<scalar_type> MultiVector_type;
+  typedef SerialDenseMatrix<scalar_type> SerialDenseMatrix_type;
+
+  const scalar_type one  (1.0);
+  const scalar_type zero (0.0);
   double t_begin = mytimer();  // Start timing right away
-  normr = 0.0;
-  double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
   double t0 = 0.0, t1 = 0.0, t2 = 0.0, t3 = 0.0, t4 = 0.0, t5 = 0.0;
+
+  normr = 0.0;
+  scalar_type rtz = zero, oldrtz = zero, alpha = zero, beta = zero, pAp = zero;
 
   int restart_length = 30;
 //#ifndef HPCG_NO_MPI
 //  double t6 = 0.0;
 //#endif
   local_int_t nrow = A.localNumberOfRows;
-  Vector & r = data.r; // Residual vector
-  Vector & z = data.z; // Preconditioned residual vector
-  Vector & p = data.p; // Direction vector (in MPI mode ncol>=nrow)
-  Vector & Ap = data.Ap;
+  Vector_type & r = data.r; // Residual vector
+  Vector_type & z = data.z; // Preconditioned residual vector
+  Vector_type & p = data.p; // Direction vector (in MPI mode ncol>=nrow)
+  Vector_type & Ap = data.Ap;
 
-  SerialDenseMatrix H;
-  SerialDenseMatrix cs;
-  SerialDenseMatrix ss;
-  SerialDenseMatrix t;
-  MultiVector Q;
-  Vector Qkm1;
-  Vector Qk;
-  Vector Qj;
+  SerialDenseMatrix_type H;
+  SerialDenseMatrix_type cs;
+  SerialDenseMatrix_type ss;
+  SerialDenseMatrix_type t;
+  MultiVector_type Q;
+  Vector_type Qkm1;
+  Vector_type Qk;
+  Vector_type Qj;
   InitializeMatrix(H,  restart_length+1, restart_length);
   InitializeMatrix(t,  restart_length+1, 1);
   InitializeMatrix(cs, restart_length+1, 1);
@@ -271,3 +278,16 @@ if (niters == 1) {
   times[0] += mytimer() - t_begin;  // Total time. All done...
   return 0;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int GMRES< SparseMatrix<double>, CGData<double>, Vector<double> >
+  (SparseMatrix<double> const&, CGData<double>&, Vector<double> const&, Vector<double>&, int, double, int&, double&, double&, double*, bool);
+
+template
+int GMRES< SparseMatrix<float>, CGData<float>, Vector<float> >
+  (SparseMatrix<float> const&, CGData<float>&, Vector<float> const&, Vector<float>&, int, float, int&, float&, float&, double*, bool);

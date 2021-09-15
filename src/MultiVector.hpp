@@ -25,18 +25,19 @@
 #include <cstdlib>
 #include "Vector.hpp"
 
-struct MultiVector_STRUCT {
+template<class SC>
+class MultiVector {
+public:
+  typedef SC scalar_type;
   local_int_t n;            //!< number of vectors
   local_int_t localLength;  //!< length of local portion of the vector
-  double * values;          //!< array of values
+  SC * values;              //!< array of values
   /*!
    This is for storing optimized data structures created in OptimizeProblem and
    used inside optimized ComputeSPMV().
    */
   void * optimizationData;
-
 };
-typedef struct MultiVector_STRUCT MultiVector;
 
 /*!
   Initializes input vectors.
@@ -45,10 +46,14 @@ typedef struct MultiVector_STRUCT MultiVector;
   @param[in] localLength Length of local portion of input vector
   @param[in] n           Number of columns
  */
-inline void InitializeMultiVector(MultiVector & V, local_int_t localLength, local_int_t n) {
+template<class MultiVector_type>
+inline void InitializeMultiVector(MultiVector_type & V, local_int_t localLength, local_int_t n) {
+
+  typedef typename MultiVector_type::scalar_type scalar_type;
+
   V.localLength = localLength;
   V.n = n;
-  V.values = new double[localLength * n];
+  V.values = new scalar_type[localLength * n];
   V.optimizationData = 0;
   return;
 }
@@ -58,10 +63,14 @@ inline void InitializeMultiVector(MultiVector & V, local_int_t localLength, loca
 
   @param[inout] v - On entrance v is initialized, on exit all its values are zero.
  */
-inline void ZeroMultiVector(MultiVector & V) {
+template<class MultiVector_type>
+inline void ZeroMultiVector(MultiVector_type & V) {
+
+  typedef typename MultiVector_type::scalar_type scalar_type;
+
   local_int_t n = V.n;
   local_int_t m = V.localLength;
-  double * vv = V.values;
+  scalar_type * vv = V.values;
   for (int i=0; i<m*n; ++i)
     vv[i] = 0.0;
   return;
@@ -70,7 +79,8 @@ inline void ZeroMultiVector(MultiVector & V) {
 /*!
   @param[inout] v - On entrance v is initialized, on exit all its values are zero.
  */
-inline void GetVector(MultiVector & V, local_int_t j, Vector & vj) {
+template<class MultiVector_type, class Vector_type>
+inline void GetVector(MultiVector_type & V, local_int_t j, Vector_type & vj) {
   vj.localLength = V.localLength;
   vj.values = &V.values[V.localLength*j];
   return;
@@ -81,7 +91,8 @@ inline void GetVector(MultiVector & V, local_int_t j, Vector & vj) {
 
   @param[in] A the known system matrix
  */
-inline void DeleteMultiVector(MultiVector & V) {
+template<class MultiVector_type>
+inline void DeleteMultiVector(MultiVector_type & V) {
 
   delete [] V.values;
   V.localLength = 0;

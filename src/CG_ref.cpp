@@ -19,7 +19,6 @@
  */
 
 #include <fstream>
-#include <iostream>
 
 #include <cmath>
 
@@ -27,10 +26,10 @@
 
 #include "CG_ref.hpp"
 #include "mytimer.hpp"
-#include "ComputeSPMV_ref.hpp"
-#include "ComputeMG_ref.hpp"
-#include "ComputeDotProduct_ref.hpp"
-#include "ComputeWAXPBY_ref.hpp"
+#include "ComputeSPMV.hpp"
+#include "ComputeMG.hpp"
+#include "ComputeDotProduct.hpp"
+#include "ComputeWAXPBY.hpp"
 
 
 // Use TICK and TOCK to time a code section in MATLAB-like fashion
@@ -38,8 +37,9 @@
 #define TOCK(t) t += mytimer() - t0 //!< store time difference in 't' using time in 't0'
 
 /*!
-  Reference routine to compute an approximate solution to Ax = b
+  Routine to compute an approximate solution to Ax = b
 
+  @param[in]    geom The description of the problem's geometry.
   @param[inout] A    The known system matrix
   @param[inout] data The data structure with all necessary CG vectors preallocated
   @param[in]    b    The known right hand side vector
@@ -53,29 +53,35 @@
   @param[in]    doPreconditioning The flag to indicate whether the preconditioner should be invoked at each iteration.
 
   @return Returns zero on success and a non-zero value otherwise.
-
-  @see CG()
 */
-int CG_ref(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
-    const int max_iter, const double tolerance, int & niters, double & normr, double & normr0,
-    double * times, bool doPreconditioning) {
+template<class SparseMatrix_type, class CGData_type, class Vector_type>
+int CG_ref(const SparseMatrix_type & A, CGData_type & data,
+           const Vector_type & b,
+                 Vector_type & x,
+           const int max_iter,
+           const typename SparseMatrix_type::scalar_type tolerance,
+                 int & niters,
+                 typename SparseMatrix_type::scalar_type & normr,
+                 typename SparseMatrix_type::scalar_type & normr0,
+                 double * times,
+                 bool doPreconditioning) {
+
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
+  const scalar_type zero(0.0);
 
   double t_begin = mytimer();  // Start timing right away
   normr = 0.0;
-  double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
-
+  scalar_type rtz = zero, oldrtz = zero, alpha = zero, beta = zero, pAp = zero;
 
   double t0 = 0.0, t1 = 0.0, t2 = 0.0, t3 = 0.0, t4 = 0.0, t5 = 0.0;
 //#ifndef HPCG_NO_MPI
 //  double t6 = 0.0;
 //#endif
-
   local_int_t nrow = A.localNumberOfRows;
-
-  Vector & r = data.r; // Residual vector
-  Vector & z = data.z; // Preconditioned residual vector
-  Vector & p = data.p; // Direction vector (in MPI mode ncol>=nrow)
-  Vector & Ap = data.Ap;
+  Vector_type & r = data.r; // Residual vector
+  Vector_type & z = data.z; // Preconditioned residual vector
+  Vector_type & p = data.p; // Direction vector (in MPI mode ncol>=nrow)
+  Vector_type & Ap = data.Ap;
 
   if (!doPreconditioning && A.geom->rank==0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
@@ -86,9 +92,9 @@ int CG_ref(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
 #endif
   // p is of length ncols, copy x to p for sparse MV operation
   CopyVector(x, p);
-  TICK(); ComputeSPMV_ref(A, p, Ap);  TOCK(t3); // Ap = A*p
-  TICK(); ComputeWAXPBY_ref(nrow, 1.0, b, -1.0, Ap, r); TOCK(t2); // r = b - Ax (x stored in p)
-  TICK(); ComputeDotProduct_ref(nrow, r, r, normr, t4);  TOCK(t1);
+  TICK(); ComputeSPMV(A, p, Ap); TOCK(t3); // Ap = A*p
+  TICK(); ComputeWAXPBY(nrow, 1.0, b, -1.0, Ap, r, A.isWaxpbyOptimized);  TOCK(t2); // r = b - Ax (x stored in p)
+  TICK(); ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized); TOCK(t1);
   normr = sqrt(normr);
 #ifdef HPCG_DEBUG
   if (A.geom->rank==0) HPCG_fout << "Initial Residual = "<< normr << std::endl;
@@ -101,29 +107,28 @@ int CG_ref(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
 
   for (int k=1; k<=max_iter && normr/normr0 > tolerance; k++ ) {
     TICK();
-    //if (A.geom->rank==0) std::cout << " Precond:" << std::endl;
     if (doPreconditioning)
-      ComputeMG_ref(A, r, z); // Apply preconditioner
+      ComputeMG(A, r, z); // Apply preconditioner
     else
-      ComputeWAXPBY_ref(nrow, 1.0, r, 0.0, r, z); // copy r to z (no preconditioning)
+      CopyVector (r, z); // copy r to z (no preconditioning)
     TOCK(t5); // Preconditioner apply time
 
     if (k == 1) {
-      CopyVector(z, p); TOCK(t2); // Copy Mr to p
-      TICK(); ComputeDotProduct_ref(nrow, r, z, rtz, t4); TOCK(t1); // rtz = r'*z
+      TICK(); ComputeWAXPBY(nrow, 1.0, z, 0.0, z, p, A.isWaxpbyOptimized); TOCK(t2); // Copy Mr to p
+      TICK(); ComputeDotProduct (nrow, r, z, rtz, t4, A.isDotProductOptimized); TOCK(t1); // rtz = r'*z
     } else {
       oldrtz = rtz;
-      TICK(); ComputeDotProduct_ref(nrow, r, z, rtz, t4); TOCK(t1); // rtz = r'*z
+      TICK(); ComputeDotProduct (nrow, r, z, rtz, t4, A.isDotProductOptimized); TOCK(t1); // rtz = r'*z
       beta = rtz/oldrtz;
-      TICK(); ComputeWAXPBY_ref(nrow, 1.0, z, beta, p, p);  TOCK(t2); // p = beta*p + z
+      TICK(); ComputeWAXPBY (nrow, 1.0, z, beta, p, p, A.isWaxpbyOptimized);  TOCK(t2); // p = beta*p + z
     }
 
-    TICK(); ComputeSPMV_ref(A, p, Ap); TOCK(t3); // Ap = A*p
-    TICK(); ComputeDotProduct_ref(nrow, p, Ap, pAp, t4); TOCK(t1); // alpha = p'*Ap
+    TICK(); ComputeSPMV(A, p, Ap); TOCK(t3); // Ap = A*p
+    TICK(); ComputeDotProduct(nrow, p, Ap, pAp, t4, A.isDotProductOptimized); TOCK(t1); // alpha = p'*Ap
     alpha = rtz/pAp;
-    TICK(); ComputeWAXPBY_ref(nrow, 1.0, x, alpha, p, x);// x = x + alpha*p
-            ComputeWAXPBY_ref(nrow, 1.0, r, -alpha, Ap, r);  TOCK(t2);// r = r - alpha*Ap
-    TICK(); ComputeDotProduct_ref(nrow, r, r, normr, t4); TOCK(t1);
+    TICK(); ComputeWAXPBY(nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized);// x = x + alpha*p
+            ComputeWAXPBY(nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized);  TOCK(t2);// r = r - alpha*Ap
+    TICK(); ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized); TOCK(t1);
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
     if (A.geom->rank==0 && (k%print_freq == 0 || k == max_iter))
@@ -133,7 +138,7 @@ int CG_ref(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   }
 
   // Store times
-  times[1] += t1; // dot product time
+  times[1] += t1; // dot-product time
   times[2] += t2; // WAXPBY time
   times[3] += t3; // SPMV time
   times[4] += t4; // AllReduce time
@@ -144,4 +149,25 @@ int CG_ref(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   times[0] += mytimer() - t_begin;  // Total time. All done...
   return 0;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int CG_ref< SparseMatrix<double>, CGData<double>, Vector<double> >(
+ SparseMatrix<double> const&, CGData<double>&,
+ Vector<double> const&, 
+ Vector<double>&, 
+ int, double, 
+ int&, double&, double&, double*, bool);
+
+template
+int CG_ref< SparseMatrix<float>, CGData<float>, Vector<float> >(
+ SparseMatrix<float> const&, CGData<float>&,
+ Vector<float> const&, 
+ Vector<float>&, 
+ int, float, 
+ int&, float&, float&, double*, bool);
 

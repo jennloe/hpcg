@@ -24,6 +24,7 @@
 #include <omp.h>
 #endif
 
+#include "Utils.hpp"
 #include "Vector.hpp"
 
 #ifdef HPCG_DETAILED_DEBUG
@@ -46,19 +47,21 @@
 
   @return Returns zero on success and a non-zero value otherwise.
 */
-int ComputeResidual(const local_int_t n, const Vector & v1, const Vector & v2, double & residual) {
+template<class Vector_type>
+int ComputeResidual(const local_int_t n, const Vector_type & v1, const Vector_type & v2, typename Vector_type::scalar_type & residual) {
 
-  double * v1v = v1.values;
-  double * v2v = v2.values;
-  double local_residual = 0.0;
+  typedef typename Vector_type::scalar_type scalar_type;
+  scalar_type * v1v = v1.values;
+  scalar_type * v2v = v2.values;
+  scalar_type local_residual (0.0);
 
 #ifndef HPCG_NO_OPENMP
   #pragma omp parallel shared(local_residual, v1v, v2v)
   {
-    double threadlocal_residual = 0.0;
+    scalar_type threadlocal_residual (0.0);
     #pragma omp for
     for (local_int_t i=0; i<n; i++) {
-      double diff = std::fabs(v1v[i] - v2v[i]);
+      scalar_type diff = std::fabs(v1v[i] - v2v[i]);
       if (diff > threadlocal_residual) threadlocal_residual = diff;
     }
     #pragma omp critical
@@ -68,7 +71,7 @@ int ComputeResidual(const local_int_t n, const Vector & v1, const Vector & v2, d
   }
 #else // No threading
   for (local_int_t i=0; i<n; i++) {
-    double diff = std::fabs(v1v[i] - v2v[i]);
+    scalar_type diff = std::fabs(v1v[i] - v2v[i]);
     if (diff > local_residual) local_residual = diff;
 #ifdef HPCG_DETAILED_DEBUG
     HPCG_fout << " Computed, exact, diff = " << v1v[i] << " " << v2v[i] << " " << diff << std::endl;
@@ -78,8 +81,9 @@ int ComputeResidual(const local_int_t n, const Vector & v1, const Vector & v2, d
 
 #ifndef HPCG_NO_MPI
   // Use MPI's reduce function to collect all partial sums
-  double global_residual = 0;
-  MPI_Allreduce(&local_residual, &global_residual, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  scalar_type global_residual = 0;
+  MPI_Datatype MPI_SCALAR_TYPE = MpiTypeTraits<scalar_type>::getType ();
+  MPI_Allreduce(&local_residual, &global_residual, 1, MPI_SCALAR_TYPE, MPI_MAX, MPI_COMM_WORLD);
   residual = global_residual;
 #else
   residual = local_residual;
@@ -87,3 +91,14 @@ int ComputeResidual(const local_int_t n, const Vector & v1, const Vector & v2, d
 
   return 0;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int ComputeResidual< Vector<double> >(int, Vector<double> const&, Vector<double> const&, double&);
+
+template
+int ComputeResidual< Vector<float> >(int, Vector<float> const&, Vector<float> const&, float&);

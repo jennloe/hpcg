@@ -25,20 +25,22 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-struct MGData_STRUCT {
+template<class SC>
+class MGData {
+public:
+  typedef Vector<SC> Vector_type;
   int numberOfPresmootherSteps; // Call ComputeSYMGS this many times prior to coarsening
   int numberOfPostsmootherSteps; // Call ComputeSYMGS this many times after coarsening
   local_int_t * f2cOperator; //!< 1D array containing the fine operator local IDs that will be injected into coarse space.
-  Vector * rc; // coarse grid residual vector
-  Vector * xc; // coarse grid solution vector
-  Vector * Axf; // fine grid residual vector
+  Vector_type * rc; // coarse grid residual vector
+  Vector_type * xc; // coarse grid solution vector
+  Vector_type * Axf; // fine grid residual vector
   /*!
    This is for storing optimized data structres created in OptimizeProblem and
    used inside optimized ComputeSPMV().
    */
   void * optimizationData;
 };
-typedef struct MGData_STRUCT MGData;
 
 /*!
  Constructor for the data structure of CG vectors.
@@ -47,7 +49,12 @@ typedef struct MGData_STRUCT MGData;
  @param[in] f2cOperator -
  @param[out] data the data structure for CG vectors that will be allocated to get it ready for use in CG iterations
  */
-inline void InitializeMGData(local_int_t * f2cOperator, Vector * rc, Vector * xc, Vector * Axf, MGData & data) {
+template <class MGData_type>
+inline void InitializeMGData(local_int_t * f2cOperator,
+                             typename MGData_type::Vector_type * rc,
+                             typename MGData_type::Vector_type * xc,
+                             typename MGData_type::Vector_type * Axf,
+                             MGData_type & data) {
   data.numberOfPresmootherSteps = 1;
   data.numberOfPostsmootherSteps = 1;
   data.f2cOperator = f2cOperator; // Space for injection operator
@@ -62,7 +69,8 @@ inline void InitializeMGData(local_int_t * f2cOperator, Vector * rc, Vector * xc
 
  @param[inout] data the MG data structure whose storage is deallocated
  */
-inline void DeleteMGData(MGData & data) {
+template <class MGData_type>
+inline void DeleteMGData(MGData_type & data) {
 
   delete [] data.f2cOperator;
   DeleteVector(*data.Axf);

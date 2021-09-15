@@ -17,5 +17,7 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-void GenerateNonsymProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact);
+template<class SparseMatrix_type, class Vector_type>
+void GenerateNonsymProblem(SparseMatrix_type & A, Vector_type * b, Vector_type * x, Vector_type * xexact, bool init_vect = true);
+
 #endif // GENERATEPROBLEM_HPP

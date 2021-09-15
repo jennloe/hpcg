@@ -47,8 +47,10 @@ using std::endl;
   @see GenerateGeometry
 */
 
-void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
+template<class SparseMatrix_type, class Vector_type>
+void GenerateProblem_ref(SparseMatrix_type & A, Vector_type * b, Vector_type * x, Vector_type * xexact, bool init_vect) {
 
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
   // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
   // below may result in global range values.
   global_int_t nx = A.geom->nx;
@@ -75,18 +77,20 @@ void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexa
   char * nonzerosInRow = new char[localNumberOfRows];
   global_int_t ** mtxIndG = new global_int_t*[localNumberOfRows];
   local_int_t  ** mtxIndL = new local_int_t*[localNumberOfRows];
-  double ** matrixValues = new double*[localNumberOfRows];
-  double ** matrixDiagonal = new double*[localNumberOfRows];
+  scalar_type ** matrixValues = new scalar_type*[localNumberOfRows];
+  scalar_type ** matrixDiagonal = new scalar_type*[localNumberOfRows];
 
-  if (b!=0) InitializeVector(*b, localNumberOfRows);
-  if (x!=0) InitializeVector(*x, localNumberOfRows);
-  if (xexact!=0) InitializeVector(*xexact, localNumberOfRows);
-  double * bv = 0;
-  double * xv = 0;
-  double * xexactv = 0;
-  if (b!=0) bv = b->values; // Only compute exact solution if requested
-  if (x!=0) xv = x->values; // Only compute exact solution if requested
-  if (xexact!=0) xexactv = xexact->values; // Only compute exact solution if requested
+  scalar_type * bv = 0;
+  scalar_type * xv = 0;
+  scalar_type * xexactv = 0;
+  if (init_vect) {
+    InitializeVector(*b, localNumberOfRows);
+    InitializeVector(*x, localNumberOfRows);
+    InitializeVector(*xexact, localNumberOfRows);
+    bv = b->values; // Only compute exact solution if requested
+    xv = x->values; // Only compute exact solution if requested
+    xexactv = xexact->values; // Only compute exact solution if requested
+  }
   A.localToGlobalMap.resize(localNumberOfRows);
 
   // Use a parallel loop to do initial assignment:
@@ -106,20 +110,20 @@ void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexa
   for (local_int_t i=0; i< localNumberOfRows; ++i)
     mtxIndL[i] = new local_int_t[numberOfNonzerosPerRow];
   for (local_int_t i=0; i< localNumberOfRows; ++i)
-    matrixValues[i] = new double[numberOfNonzerosPerRow];
+    matrixValues[i] = new scalar_type[numberOfNonzerosPerRow];
   for (local_int_t i=0; i< localNumberOfRows; ++i)
    mtxIndG[i] = new global_int_t[numberOfNonzerosPerRow];
 
 #else
   // Now allocate the arrays pointed to
   mtxIndL[0] = new local_int_t[localNumberOfRows * numberOfNonzerosPerRow];
-  matrixValues[0] = new double[localNumberOfRows * numberOfNonzerosPerRow];
+  matrixValues[0] = new scalar_type[localNumberOfRows * numberOfNonzerosPerRow];
   mtxIndG[0] = new global_int_t[localNumberOfRows * numberOfNonzerosPerRow];
 
   for (local_int_t i=1; i< localNumberOfRows; ++i) {
-  mtxIndL[i] = mtxIndL[0] + i * numberOfNonzerosPerRow;
-  matrixValues[i] = matrixValues[0] + i * numberOfNonzerosPerRow;
-  mtxIndG[i] = mtxIndG[0] + i * numberOfNonzerosPerRow;
+    mtxIndL[i] = mtxIndL[0] + i * numberOfNonzerosPerRow;
+    matrixValues[i] = matrixValues[0] + i * numberOfNonzerosPerRow;
+    mtxIndG[i] = mtxIndG[0] + i * numberOfNonzerosPerRow;
   }
 #endif
 
@@ -147,7 +151,7 @@ void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexa
         HPCG_fout << " rank, globalRow, localRow = " << A.geom->rank << " " << currentGlobalRow << " " << A.globalToLocalMap[currentGlobalRow] << endl;
 #endif
         char numberOfNonzerosInRow = 0;
-        double * currentValuePointer = matrixValues[currentLocalRow]; // Pointer to current value in current row
+        scalar_type * currentValuePointer = matrixValues[currentLocalRow]; // Pointer to current value in current row
         global_int_t * currentIndexPointerG = mtxIndG[currentLocalRow]; // Pointer to current index in current row
         for (int sz=-1; sz<=1; sz++) {
           if (giz+sz>-1 && giz+sz<gnz) {
@@ -175,9 +179,11 @@ void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexa
         #pragma omp critical
 #endif
         localNumberOfNonzeros += numberOfNonzerosInRow; // Protect this with an atomic
-        if (b!=0)      bv[currentLocalRow] = 26.0 - ((double) (numberOfNonzerosInRow-1));
-        if (x!=0)      xv[currentLocalRow] = 0.0;
-        if (xexact!=0) xexactv[currentLocalRow] = 1.0;
+        if (init_vect) {
+          bv[currentLocalRow] = 26.0 - ((scalar_type) (numberOfNonzerosInRow-1));
+          xv[currentLocalRow] = 0.0;
+          xexactv[currentLocalRow] = 1.0;
+        }
       } // end ix loop
     } // end iy loop
   } // end iz loop
@@ -217,3 +223,15 @@ void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexa
 
   return;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+void GenerateProblem_ref< SparseMatrix<double>, Vector<double> > (SparseMatrix<double>&, Vector<double>*, Vector<double>*, Vector<double>*, bool);
+
+template
+void GenerateProblem_ref< SparseMatrix<float>, Vector<float> > (SparseMatrix<float>&, Vector<float>*, Vector<float>*, Vector<float>*, bool);
+

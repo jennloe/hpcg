@@ -46,7 +46,10 @@ using std::endl;
 
   @see ExchangeHalo
 */
-void SetupHalo_ref(SparseMatrix & A) {
+template<class SparseMatrix_type>
+void SetupHalo_ref(SparseMatrix_type & A) {
+
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
 
   // Extract Matrix pieces
 
@@ -116,7 +119,7 @@ void SetupHalo_ref(SparseMatrix & A) {
 #endif
 
   // Build the arrays and lists needed by the ExchangeHalo function.
-  double * sendBuffer = new double[totalToBeSent];
+  scalar_type * sendBuffer = new scalar_type[totalToBeSent];
   local_int_t * elementsToSend = new local_int_t[totalToBeSent];
   int * neighbors = new int[sendList.size()];
   local_int_t * receiveLength = new local_int_t[receiveList.size()];
@@ -179,3 +182,15 @@ void SetupHalo_ref(SparseMatrix & A) {
 
   return;
 }
+
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+void SetupHalo_ref< SparseMatrix<double> >(SparseMatrix<double>&);
+
+template
+void SetupHalo_ref< SparseMatrix<float> >(SparseMatrix<float>&);
+

@@ -49,9 +49,11 @@
 
   @see GenerateProblem
 */
-int WriteProblem( const Geometry & geom, const SparseMatrix & A,
-    const Vector b, const Vector x, const Vector xexact) {
+template<class SparseMatrix_type, class Vector_type>
+int WriteProblem(const Geometry & geom, const SparseMatrix_type & A,
+                 const Vector_type b, const Vector_type x, const Vector_type xexact) {
 
+  typedef typename SparseMatrix_type::scalar_type scalar_type;
   if (geom.size!=1) return -1; //TODO Only works on one processor.  Need better error handler
   const global_int_t nrow = A.totalNumberOfRows;
 
@@ -70,7 +72,7 @@ int WriteProblem( const Geometry & geom, const SparseMatrix & A,
   }
 
   for (global_int_t i=0; i< nrow; i++) {
-    const double * const currentRowValues = A.matrixValues[i];
+    const scalar_type * const currentRowValues = A.matrixValues[i];
     const global_int_t * const currentRowIndices = A.mtxIndG[i];
     const int currentNumberOfNonzeros = A.nonzerosInRow[i];
     for (int j=0; j< currentNumberOfNonzeros; j++)

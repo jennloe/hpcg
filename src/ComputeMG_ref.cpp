@@ -37,7 +37,8 @@
 
   @see ComputeMG
 */
-int ComputeMG_ref(const SparseMatrix & A, const Vector & r, Vector & x, bool symmetric) {
+template<class SparseMatrix_type, class Vector_type>
+int ComputeMG_ref(const SparseMatrix_type & A, const Vector_type & r, Vector_type & x, bool symmetric) {
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
   ZeroVector(x); // initialize x to zero
@@ -76,3 +77,13 @@ int ComputeMG_ref(const SparseMatrix & A, const Vector & r, Vector & x, bool sym
   return 0;
 }
 
+
+/* --------------- *
+ * specializations *
+ * --------------- */
+
+template
+int ComputeMG_ref< SparseMatrix<double>, Vector<double> >(SparseMatrix<double> const&, Vector<double> const&, Vector<double>&, bool);
+
+template
+int ComputeMG_ref< SparseMatrix<float>, Vector<float> >(SparseMatrix<float> const&, Vector<float> const&, Vector<float>&, bool);

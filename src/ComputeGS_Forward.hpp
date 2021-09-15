@@ -17,6 +17,7 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-int ComputeGS_Forward(const SparseMatrix  & A, const Vector & r, Vector & x);
+template<class SparseMatrix_type, class Vector_type>
+int ComputeGS_Forward(const SparseMatrix_type & A, const Vector_type & r, Vector_type & x);
 
 #endif // COMPUTEGS_FORWARD_HPP

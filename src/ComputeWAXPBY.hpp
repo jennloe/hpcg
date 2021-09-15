@@ -15,6 +15,14 @@
 #ifndef COMPUTEWAXPBY_HPP
 #define COMPUTEWAXPBY_HPP
 #include "Vector.hpp"
-int ComputeWAXPBY(const local_int_t n, const double alpha, const Vector & x,
-    const double beta, const Vector & y, Vector & w, bool & isOptimized);
+
+template<class Vector_type>
+int ComputeWAXPBY(const local_int_t n,
+                  const typename Vector_type::scalar_type alpha,
+                  const Vector_type & x,
+                  const typename Vector_type::scalar_type beta,
+                  const Vector_type & y,
+                        Vector_type & w,
+                  bool & isOptimized);
+
 #endif // COMPUTEWAXPBY_HPP

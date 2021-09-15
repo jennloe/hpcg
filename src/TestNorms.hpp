@@ -22,15 +22,18 @@
 #define TESTNORMS_HPP
 
 
-struct TestNormsData_STRUCT {
-  double * values; //!< sample values
-  double   mean;   //!< mean of all sampes
-  double variance; //!< variance of mean
+template<class SC>
+class TestNormsData {
+public:
+  typedef SC scalar_type;
+  SC * values; //!< sample values
+  SC   mean;   //!< mean of all sampes
+  SC variance; //!< variance of mean
   int    samples;  //!< number of samples
   bool   pass;     //!< pass/fail indicator
 };
-typedef struct TestNormsData_STRUCT TestNormsData;
 
-extern int TestNorms(TestNormsData & testnorms_data);
+template<class TestNormsData_type>
+extern int TestNorms(TestNormsData_type & testnorms_data);
 
 #endif  // TESTNORMS_HPP

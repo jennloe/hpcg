@@ -27,7 +27,8 @@
 #include "CGData.hpp"
 #include "TestCG.hpp"
 
-extern int TestGMRES(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGData & testcg_data);
+template<class SparseMatrix_type, class CGData_type, class Vector_type, class TestCGData_type>
+extern int TestGMRES(SparseMatrix_type & A, CGData_type & data, Vector_type & b, Vector_type & x, TestCGData_type & testcg_data);
 
 #endif  // TESTGMRES_HPP
 

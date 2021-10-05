@@ -13,18 +13,17 @@
 //@HEADER
 
 /*!
- @file GMRES.cpp
+ @file GMRES_IR.cpp
 
  HPCG routine
  */
 
 #include <fstream>
-
 #include <cmath>
 
 #include "hpcg.hpp"
 
-#include "GMRES.hpp"
+#include "GMRES_IR.hpp"
 #include "mytimer.hpp"
 #include "ComputeSPMV.hpp"
 #include "ComputeMG.hpp"
@@ -58,46 +57,62 @@
 
   @see CG_ref()
 */
-template<class SparseMatrix_type, class CGData_type, class Vector_type>
-int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b, Vector_type & x,
-          const int restart_length, const int max_iter, const typename SparseMatrix_type::scalar_type tolerance,
-          int & niters, typename SparseMatrix_type::scalar_type & normr,  typename SparseMatrix_type::scalar_type & normr0,
-          double * times, bool doPreconditioning) {
+template<class SparseMatrix_type, class SparseMatrix_type2, class CGData_type, class CGData_type2, class Vector_type>
+int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
+             CGData_type & data, CGData_type2 & data_lo, const Vector_type & b_hi, Vector_type & x_hi,
+             const int restart_length, const int max_iter, const typename SparseMatrix_type::scalar_type tolerance,
+             int & niters, typename SparseMatrix_type::scalar_type & normr_hi, typename SparseMatrix_type::scalar_type & normr0_hi,
+             double * times, bool doPreconditioning) {
 
+  // higher precision for outer loop
   typedef typename SparseMatrix_type::scalar_type scalar_type;
   typedef MultiVector<scalar_type> MultiVector_type;
   typedef SerialDenseMatrix<scalar_type> SerialDenseMatrix_type;
+  // higher precision for outer loop
+  typedef typename SparseMatrix_type2::scalar_type scalar_type2;
+  typedef MultiVector<scalar_type2> MultiVector_type2;
+  typedef SerialDenseMatrix<scalar_type2> SerialDenseMatrix_type2;
+  typedef Vector<scalar_type2> Vector_type2;
 
-  const scalar_type one  (1.0);
-  const scalar_type zero (0.0);
   double t_begin = mytimer();  // Start timing right away
   double t0 = 0.0, t1 = 0.0, t2 = 0.0, t3 = 0.0, t4 = 0.0, t5 = 0.0;
-
-  normr = 0.0;
-  scalar_type rtz = zero, oldrtz = zero, alpha = zero, beta = zero, pAp = zero;
 
 //#ifndef HPCG_NO_MPI
 //  double t6 = 0.0;
 //#endif
-  local_int_t nrow = A.localNumberOfRows;
-  Vector_type & r = data.r; // Residual vector
-  Vector_type & z = data.z; // Preconditioned residual vector
-  Vector_type & p = data.p; // Direction vector (in MPI mode ncol>=nrow)
-  Vector_type & Ap = data.Ap;
+  // vectors/matrices in scalar_type2 (lower)
+  const scalar_type2 one  (1.0);
+  const scalar_type2 zero (0.0);
+  scalar_type2 normr, normr0;
+  scalar_type2 rtz = zero, oldrtz = zero, alpha = zero, beta = zero, pAp = zero;
 
-  SerialDenseMatrix_type H;
-  SerialDenseMatrix_type cs;
-  SerialDenseMatrix_type ss;
-  SerialDenseMatrix_type t;
-  MultiVector_type Q;
-  Vector_type Qkm1;
-  Vector_type Qk;
-  Vector_type Qj;
+  local_int_t nrow = A_lo.localNumberOfRows;
+  Vector_type2 & x = data_lo.w; // Intermediate solution vector
+  Vector_type2 & r = data_lo.r; // Residual vector
+  Vector_type2 & z = data_lo.z; // Preconditioned residual vector
+  Vector_type2 & p = data_lo.p; // Direction vector (in MPI mode ncol>=nrow)
+  Vector_type2 & Ap = data_lo.Ap;
+
+  SerialDenseMatrix_type2 H;
+  SerialDenseMatrix_type2 cs;
+  SerialDenseMatrix_type2 ss;
+  SerialDenseMatrix_type2 t;
+  MultiVector_type2 Q;
+  Vector_type2 Qkm1;
+  Vector_type2 Qk;
+  Vector_type2 Qj;
   InitializeMatrix(H,  restart_length+1, restart_length);
   InitializeMatrix(t,  restart_length+1, 1);
   InitializeMatrix(cs, restart_length+1, 1);
   InitializeMatrix(ss, restart_length+1, 1);
   InitializeMultiVector(Q, nrow, restart_length+1);
+
+  // vectors in scalar_type (higher)
+  const scalar_type one_hi  (1.0);
+  Vector_type & r_hi = data.r; // Residual vector
+  Vector_type & z_hi = data.z; // Preconditioned residual vector
+  Vector_type & p_hi = data.p; // Direction vector (in MPI mode ncol>=nrow)
+  Vector_type & Ap_hi = data.Ap;
 
   if (!doPreconditioning && A.geom->rank==0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
@@ -105,7 +120,7 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
   int print_freq = 1;
   if (print_freq>50) print_freq=50;
   if (print_freq<1)  print_freq=1;
-  if (A.geom->rank==0) HPCG_fout << std::endl << " Running GMRES(" << restart_length
+  if (A.geom->rank==0) HPCG_fout << std::endl << " Running GMRES_IR(" << restart_length
                                  << ") with max-iters = " << max_iter
                                  << " and tol = " << tolerance
                                  << (doPreconditioning ? " with precond " : " without precond ")
@@ -114,34 +129,33 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
   niters = 0;
   bool converged = false;
   while (niters <= max_iter && !converged) {
+    // > Compute residual vector (higher working precision)
     // p is of length ncols, copy x to p for sparse MV operation
-    CopyVector(x, p);
-    TICK(); ComputeSPMV(A, p, Ap); TOCK(t3); // Ap = A*p
-    TICK(); ComputeWAXPBY(nrow, one, b, -one, Ap, r, A.isWaxpbyOptimized);  TOCK(t2); // r = b - Ax (x stored in p)
-    TICK(); ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized); TOCK(t1);
-    normr = sqrt(normr);
+    CopyVector(x_hi, p_hi);
+    TICK(); ComputeSPMV(A, p_hi, Ap_hi); TOCK(t3); // Ap = A*p
+    TICK(); ComputeWAXPBY(nrow, one_hi, b_hi, -one_hi, Ap_hi, r_hi, A.isWaxpbyOptimized);  TOCK(t2); // r = b - Ax (x stored in p)
+    TICK(); ComputeDotProduct(nrow, r_hi, r_hi, normr_hi, t4, A.isDotProductOptimized); TOCK(t1);
+    normr_hi = sqrt(normr_hi);
+
+    // > Copy r and scale to the initial basis vector
     GetVector(Q, 0, Qj);
-    CopyVector(r, Qj);
-    TICK(); ComputeWAXPBY(nrow, zero, Qj, one/normr, Qj, Qj, A.isWaxpbyOptimized); TOCK(t2);
+    CopyVector(r_hi, Qj);
+    TICK(); ComputeWAXPBY(nrow, zero, Qj, one_hi/normr_hi, Qj, Qj, A.isWaxpbyOptimized); TOCK(t2);
 
     // Record initial residual for convergence testing
-    if (niters == 0) normr0 = normr;
+    if (niters == 0) normr0 = normr_hi;
+    normr = normr_hi;
     #ifdef HPCG_DEBUG
-    if (A.geom->rank==0) HPCG_fout << "GMRES Residual at the start of restart cycle = "<< normr
+    if (A.geom->rank==0) HPCG_fout << "GMRES_IR Residual at the start of restart cycle = "<< normr
                                    << ", " << normr/normr0 << std::endl;
     #endif
 
     if (normr/normr0 <= tolerance) {
       converged = true;
       #ifdef HPCG_DEBUG
-      if (A.geom->rank==0) HPCG_fout << " > GMRES converged " << std::endl;
+      if (A.geom->rank==0) HPCG_fout << " > GMRES_IR converged " << std::endl;
       #endif
     }
-/*if (normr/normr0 <= tolerance || (niters > 0 && doPreconditioning)) {
-  printf( " done %d iters (%s)\n",niters, (converged ? "Converged" : "Not Converged") );
-  printf( " done (%s)\n",(doPreconditioning ? "Precond" : "Not Precond") );
-  for (int i = 0; i < nrow; i++) printf( "x[%d] = %e\n",i,x.values[i] );
-}*/
 
     // do forward GS instead of symmetric GS
     bool symmetric = false;
@@ -155,13 +169,13 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
 
       TICK();
       if (doPreconditioning)
-        ComputeMG(A, Qkm1, z, symmetric); // Apply preconditioner
+        ComputeMG(A_lo, Qkm1, z, symmetric); // Apply preconditioner
       else
         CopyVector(Qkm1, z);              // copy r to z (no preconditioning)
       TOCK(t5); // Preconditioner apply time
 
       // Qk = A*z
-      TICK(); ComputeSPMV(A, z, Qk); TOCK(t3);
+      TICK(); ComputeSPMV(A_lo, z, Qk); TOCK(t3);
 
       // MGS to orthogonalize z against Q(:,0:k-1), using dots
       for (int j = 0; j < k; j++) {
@@ -222,7 +236,7 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
       normr = std::abs(v2);
       #ifdef HPCG_DEBUG
         if (A.geom->rank==0 && (k%print_freq == 0 || k+1 == restart_length))
-          HPCG_fout << "GMRES Iteration = "<< k << " (" << niters << ")   Scaled Residual = "
+          HPCG_fout << "GMRES_IR Iteration = "<< k << " (" << niters << ")   Scaled Residual = "
                     << normr << " / " << normr0 << " = " << normr/normr0 << std::endl;
       #endif
       niters ++;
@@ -231,18 +245,20 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
     // prepare to restart
     #ifdef HPCG_DEBUG
       if (A.geom->rank==0)
-        HPCG_fout << "GMRES restart: k = "<< k << " (" << niters << ")" << std::endl;
+        HPCG_fout << "GMRES_IR restart: k = "<< k << " (" << niters << ")" << std::endl;
     #endif
     // > update x
-/*printf( "\n k = %d\n",k );
+#if 0
+printf( "\n k = %d\n",k );
+printf( "t=[\n" );
+for (int i = 0; i < k; i++) printf( "%e\n",t.values[i]);
+printf("];\n\n");
+
 printf( "R=[\n" );
 for (int i = 0; i < k; i++) {
   for (int j = 0; j < k; j++) printf("%e ",H.values[i + j * H.m] );
   printf("\n");
 }
-printf("];\n\n");
-printf( "t=[\n" );
-for (int i = 0; i < k; i++) printf( "%e\n",t.values[i]);
 printf("];\n\n");
 
 if (niters == 1) {
@@ -253,14 +269,15 @@ if (niters == 1) {
    printf("\n");
  }
  printf( " ];\n\n" );
-}*/
+}
+#endif
     ComputeTRSM(k-1, one, H, t);
     if (doPreconditioning) {
       ComputeGEMV (nrow, k-1, one, Q, t, zero, r); // r = Q*t
-      ComputeMG(A, r, z, symmetric);               // z = M*r
-      TICK(); ComputeWAXPBY(nrow, one, x, one, z, x, A.isWaxpbyOptimized); TOCK(t2); // x += z
+      ComputeMG(A_lo, r, z, symmetric);            // z = M*r
+      TICK(); ComputeWAXPBY(nrow, one_hi, x_hi, one, z, x_hi, A.isWaxpbyOptimized); TOCK(t2); // x += z
     } else {
-      ComputeGEMV (nrow, k-1, one, Q, t, one, x); // x += Q*t
+      ComputeGEMV (nrow, k-1, one_hi, Q, t, one_hi, x_hi); // x += Q*t
     }
   } // end of outer-loop
 
@@ -283,12 +300,21 @@ if (niters == 1) {
  * specializations *
  * --------------- */
 
+// uniform
 template
-int GMRES< SparseMatrix<double>, CGData<double>, Vector<double> >
-  (SparseMatrix<double> const&, CGData<double>&, Vector<double> const&, Vector<double>&,
+int GMRES_IR< SparseMatrix<double>, SparseMatrix<double>, CGData<double>, CGData<double>, Vector<double> >
+  (SparseMatrix<double> const&, SparseMatrix<double> const&, CGData<double>&, CGData<double>&, Vector<double> const&, Vector<double>&,
    const int, const int, double, int&, double&, double&, double*, bool);
 
 template
-int GMRES< SparseMatrix<float>, CGData<float>, Vector<float> >
-  (SparseMatrix<float> const&, CGData<float>&, Vector<float> const&, Vector<float>&,
+int GMRES_IR< SparseMatrix<float>, SparseMatrix<float>, CGData<float>, CGData<float>, Vector<float> >
+  (SparseMatrix<float> const&, SparseMatrix<float> const&, CGData<float>&, CGData<float>&, Vector<float> const&, Vector<float>&,
    const int, const int, float, int&, float&, float&, double*, bool);
+
+
+// mixed
+template
+int GMRES_IR< SparseMatrix<double>, SparseMatrix<float>, CGData<double>, CGData<float>, Vector<double> >
+  (SparseMatrix<double> const&, SparseMatrix<float> const&, CGData<double>&, CGData<float>&, Vector<double> const&, Vector<double>&,
+   const int, const int, double, int&, double&, double&, double*, bool);
+

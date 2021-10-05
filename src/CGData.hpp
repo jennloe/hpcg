@@ -30,6 +30,7 @@ public:
   Vector<SC> r; //!< pointer to residual vector
   Vector<SC> z; //!< pointer to preconditioned residual vector
   Vector<SC> p; //!< pointer to direction vector
+  Vector<SC> w; //!< pointer to workspace
   Vector<SC> Ap; //!< pointer to Krylov vector
 };
 
@@ -46,6 +47,7 @@ inline void InitializeSparseCGData(SparseMatrix_type & A, CGData_type & data) {
   InitializeVector(data.r, nrow);
   InitializeVector(data.z, ncol);
   InitializeVector(data.p, ncol);
+  InitializeVector(data.w, nrow);
   InitializeVector(data.Ap, nrow);
   return;
 }

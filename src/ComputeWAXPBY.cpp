@@ -39,13 +39,13 @@
 
   @see ComputeWAXPBY_ref
 */
-template<class Vector_type>
+template<class VectorX_type, class VectorY_type, class VectorW_type>
 int ComputeWAXPBY(const local_int_t n,
-                  const typename Vector_type::scalar_type alpha,
-                  const Vector_type & x,
-                  const typename Vector_type::scalar_type beta,
-                  const Vector_type & y,
-                        Vector_type & w,
+                  const typename VectorX_type::scalar_type alpha,
+                  const VectorX_type & x,
+                  const typename VectorY_type::scalar_type beta,
+                  const VectorY_type & y,
+                        VectorW_type & w,
                         bool & isOptimized) {
 
   // This line and the next two lines should be removed and your version of ComputeWAXPBY should be used.
@@ -58,8 +58,15 @@ int ComputeWAXPBY(const local_int_t n,
  * specializations *
  * --------------- */
 
+// uniform
 template
-int ComputeWAXPBY< Vector<double> >(int, double, Vector<double> const&, double, Vector<double> const&, Vector<double>&, bool&);
+int ComputeWAXPBY< Vector<double>, Vector<double>, Vector<double> >(int, double, Vector<double> const&, double, Vector<double> const&, Vector<double>&, bool&);
 
 template
-int ComputeWAXPBY< Vector<float> >(int, float, Vector<float> const&, float, Vector<float> const&, Vector<float>&, bool&);
+int ComputeWAXPBY< Vector<float>, Vector<float>, Vector<float> >(int, float, Vector<float> const&, float, Vector<float> const&, Vector<float>&, bool&);
+
+
+// mixed
+template
+int ComputeWAXPBY< Vector<double>, Vector<float>, Vector<double> >(int, double, Vector<double> const&, float, Vector<float> const&, Vector<double>&, bool&);
+

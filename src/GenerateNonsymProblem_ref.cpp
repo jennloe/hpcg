@@ -51,10 +51,11 @@ using std::endl;
 template<class SparseMatrix_type, class Vector_type>
 void GenerateNonsymProblem_ref(SparseMatrix_type & A, Vector_type * b, Vector_type * x, Vector_type * xexact, bool init_vect) {
 
-  typedef typename SparseMatrix_type::scalar_type scalar_type;
-  const scalar_type zero (0.0);
-  const scalar_type one  (1.0);
-  const scalar_type two = one + one;
+  typedef typename SparseMatrix_type::scalar_type matrix_scalar_type;
+  typedef typename       Vector_type::scalar_type vector_scalar_type;
+  const matrix_scalar_type zero (0.0);
+  const matrix_scalar_type one  (1.0);
+  const vector_scalar_type two = one + one;
 
   // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
   // below may result in global range values.
@@ -82,12 +83,12 @@ void GenerateNonsymProblem_ref(SparseMatrix_type & A, Vector_type * b, Vector_ty
   char * nonzerosInRow = new char[localNumberOfRows];
   global_int_t ** mtxIndG = new global_int_t*[localNumberOfRows];
   local_int_t  ** mtxIndL = new local_int_t*[localNumberOfRows];
-  scalar_type ** matrixValues = new scalar_type*[localNumberOfRows];
-  scalar_type ** matrixDiagonal = new scalar_type*[localNumberOfRows];
+  matrix_scalar_type ** matrixValues   = new matrix_scalar_type*[localNumberOfRows];
+  matrix_scalar_type ** matrixDiagonal = new matrix_scalar_type*[localNumberOfRows];
 
-  scalar_type * bv = 0;
-  scalar_type * xv = 0;
-  scalar_type * xexactv = 0;
+  vector_scalar_type * bv = 0;
+  vector_scalar_type * xv = 0;
+  vector_scalar_type * xexactv = 0;
   if (init_vect) {
     InitializeVector(*b, localNumberOfRows);
     InitializeVector(*x, localNumberOfRows);
@@ -115,14 +116,14 @@ void GenerateNonsymProblem_ref(SparseMatrix_type & A, Vector_type * b, Vector_ty
   for (local_int_t i=0; i< localNumberOfRows; ++i)
     mtxIndL[i] = new local_int_t[numberOfNonzerosPerRow];
   for (local_int_t i=0; i< localNumberOfRows; ++i)
-    matrixValues[i] = new scalar_type[numberOfNonzerosPerRow];
+    matrixValues[i] = new matrix_scalar_type[numberOfNonzerosPerRow];
   for (local_int_t i=0; i< localNumberOfRows; ++i)
    mtxIndG[i] = new global_int_t[numberOfNonzerosPerRow];
 
 #else
   // Now allocate the arrays pointed to
   mtxIndL[0] = new local_int_t[localNumberOfRows * numberOfNonzerosPerRow];
-  matrixValues[0] = new scalar_type[localNumberOfRows * numberOfNonzerosPerRow];
+  matrixValues[0] = new matrix_scalar_type[localNumberOfRows * numberOfNonzerosPerRow];
   mtxIndG[0] = new global_int_t[localNumberOfRows * numberOfNonzerosPerRow];
 
   for (local_int_t i=1; i< localNumberOfRows; ++i) {
@@ -132,8 +133,8 @@ void GenerateNonsymProblem_ref(SparseMatrix_type & A, Vector_type * b, Vector_ty
   }
 #endif
 
-  scalar_type beta (1.0);
-  scalar_type gamma (10.0); //one;
+  matrix_scalar_type beta (1.0);
+  matrix_scalar_type gamma (10.0); //one;
   local_int_t localNumberOfNonzeros = 0;
   // TODO:  This triply nested loop could be flattened or use nested parallelism
 #ifndef HPCG_NO_OPENMP
@@ -159,8 +160,8 @@ void GenerateNonsymProblem_ref(SparseMatrix_type & A, Vector_type * b, Vector_ty
         HPCG_fout << " rank, globalRow, localRow = " << A.geom->rank << " " << currentGlobalRow << " " << A.globalToLocalMap[currentGlobalRow] << endl;
 #endif
         char numberOfNonzerosInRow = 0;
-        scalar_type * currentValuePointer = matrixValues[currentLocalRow]; // Pointer to current value in current row
-        scalar_type bi (0.0);
+        matrix_scalar_type * currentValuePointer = matrixValues[currentLocalRow]; // Pointer to current value in current row
+        vector_scalar_type bi (0.0);
         global_int_t * currentIndexPointerG = mtxIndG[currentLocalRow]; // Pointer to current index in current row
         for (int sz=-1; sz<=1; sz++) {
           int jz = iz+sz;
@@ -178,12 +179,12 @@ void GenerateNonsymProblem_ref(SparseMatrix_type & A, Vector_type * b, Vector_ty
                     } else {
                       *currentValuePointer = 1.0;
                     }
-                    scalar_type beta_i = sqrt(one + beta*(((scalar_type)(gix0+ix))/((scalar_type)(gnx-1)))) *
-                                         sqrt(one + beta*(((scalar_type)(giy0+iy))/((scalar_type)(gny-1)))) *
-                                         sqrt(one + beta*(((scalar_type)(giz0+iz))/((scalar_type)(gnz-1))));
-                    scalar_type beta_j = sqrt(one + beta*(((scalar_type)(gix0+jx))/((scalar_type)(gnx-1)))) *
-                                         sqrt(one + beta*(((scalar_type)(giy0+jy))/((scalar_type)(gny-1)))) *
-                                         sqrt(one + beta*(((scalar_type)(giz0+jz))/((scalar_type)(gnz-1))));
+                    matrix_scalar_type beta_i = sqrt(one + beta*(((matrix_scalar_type)(gix0+ix))/((matrix_scalar_type)(gnx-1)))) *
+                                                sqrt(one + beta*(((matrix_scalar_type)(giy0+iy))/((matrix_scalar_type)(gny-1)))) *
+                                                sqrt(one + beta*(((matrix_scalar_type)(giz0+iz))/((matrix_scalar_type)(gnz-1))));
+                    matrix_scalar_type beta_j = sqrt(one + beta*(((matrix_scalar_type)(gix0+jx))/((matrix_scalar_type)(gnx-1)))) *
+                                                sqrt(one + beta*(((matrix_scalar_type)(giy0+jy))/((matrix_scalar_type)(gny-1)))) *
+                                                sqrt(one + beta*(((matrix_scalar_type)(giz0+jz))/((matrix_scalar_type)(gnz-1))));
                     *currentValuePointer *= (beta_i * beta_j);
                     if (sy == 0 && sz == 0) {
                       if (sx == 1) {
@@ -259,9 +260,15 @@ void GenerateNonsymProblem_ref(SparseMatrix_type & A, Vector_type * b, Vector_ty
  * specializations *
  * --------------- */
 
+// uniform
 template
 void GenerateNonsymProblem_ref< SparseMatrix<double>, Vector<double> >(SparseMatrix<double>&, Vector<double>*, Vector<double>*, Vector<double>*, bool);
 
 template
 void GenerateNonsymProblem_ref< SparseMatrix<float>, Vector<float> >(SparseMatrix<float>&, Vector<float>*, Vector<float>*, Vector<float>*, bool);
+
+
+// mixed
+template
+void GenerateNonsymProblem_ref< SparseMatrix<float>, Vector<double> >(SparseMatrix<float>&, Vector<double>*, Vector<double>*, Vector<double>*, bool);
 

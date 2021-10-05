@@ -20,6 +20,8 @@
 
 #ifndef VECTOR_HPP
 #define VECTOR_HPP
+
+#include <fstream>
 #include <cassert>
 #include <cstdlib>
 #include "Geometry.hpp"

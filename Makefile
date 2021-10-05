@@ -17,9 +17,12 @@ HPCG_DEPS = src/CG.o src/CG_ref.o src/TestCG.o src/ComputeResidual.o \
          src/ComputeMG_ref.o src/ComputeMG.o src/ComputeProlongation_ref.o src/ComputeRestriction_ref.o src/GenerateCoarseProblem.o \
 	 src/ComputeOptimalShapeXYZ.o src/MixedBaseCounter.o src/CheckAspectRatio.o src/OutputFile.o \
          \
-         src/GMRES.o src/TestGMRES.o src/ComputeTRSM.o src/ComputeGEMV.o \
+         src/TestGMRES.o src/ComputeTRSM.o src/ComputeGEMV.o \
+         src/GMRES.o src/GMRES_IR.o \
          src/ComputeGS_Forward.o src/ComputeGS_Forward_ref.o \
-         src/GenerateNonsymProblem.o src/GenerateNonsymProblem_ref.o src/GenerateNonsymCoarseProblem.o 
+         src/SetupProblem.o \
+         src/GenerateNonsymProblem.o src/GenerateNonsymProblem_ref.o src/GenerateNonsymProblem_v1_ref.o \
+         src/GenerateNonsymCoarseProblem.o 
 
 bin/xhpcg: src/main.o $(HPCG_DEPS)
 	$(LINKER) $(LINKFLAGS) src/main.o $(HPCG_DEPS) -o bin/xhpcg $(HPCG_LIBS)

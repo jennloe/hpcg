@@ -48,12 +48,15 @@ HPCG_DEPS = src/CG.o \
             \
 	    src/TestGMRES.o \
 	    src/GMRES.o \
+	    src/GMRES_IR.o \
 	    src/ComputeGS_Forward.o \
 	    src/ComputeGS_Forward_ref.o \
 	    src/ComputeTRSM.o \
 	    src/ComputeGEMV.o \
+            src/SetupProblem.o \
 	    src/GenerateNonsymProblem.o \
 	    src/GenerateNonsymProblem_ref.o \
+	    src/GenerateNonsymProblem_v1_ref.o \
 	    src/GenerateNonsymCoarseProblem.o \
 
 # These header files are included in many source files, so we recompile every file if one or more of these header is modified.
@@ -200,6 +203,9 @@ src/OutputFile.o: HPCG_SRC_PATH/src/OutputFile.cpp HPCG_SRC_PATH/src/OutputFile.
 src/GMRES.o: HPCG_SRC_PATH/src/GMRES.cpp HPCG_SRC_PATH/src/GMRES.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
+src/GMRES_IR.o: HPCG_SRC_PATH/src/GMRES_IR.cpp HPCG_SRC_PATH/src/GMRES_IR.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
 src/TestGMRES.o: HPCG_SRC_PATH/src/TestGMRES.cpp HPCG_SRC_PATH/src/TestGMRES.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
@@ -215,10 +221,16 @@ src/ComputeTRSM.o: HPCG_SRC_PATH/src/ComputeTRSM.cpp HPCG_SRC_PATH/src/ComputeTR
 src/ComputeGEMV.o: HPCG_SRC_PATH/src/ComputeGEMV.cpp HPCG_SRC_PATH/src/ComputeGEMV.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
-src/GenerateNonsymProblem.o: HPCG_SRC_PATH/src/GenerateNonsymProblem.cpp HPCG_SRC_PATH/src/GenerateNonsymProblem.hpp $(PRIMARY_HEADERS)
+src/SetupProblem.o: HPCG_SRC_PATH/src/SetupProblem.cpp HPCG_SRC_PATH/src/SetupProblem.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/GenerateNonsymProblem.o: HPCG_SRC_PATH/src/GenerateNonsymProblem.cpp HPCG_SRC_PATH/src/GenerateNonsymProblem.hpp HPCG_SRC_PATH/src/GenerateNonsymProblem_v1_ref.cpp HPCG_SRC_PATH/src/GenerateNonsymProblem_v1_ref.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/GenerateNonsymProblem_ref.o: HPCG_SRC_PATH/src/GenerateNonsymProblem_ref.cpp HPCG_SRC_PATH/src/GenerateNonsymProblem_ref.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/GenerateNonsymProblem_v1_ref.o: HPCG_SRC_PATH/src/GenerateNonsymProblem_v1_ref.cpp HPCG_SRC_PATH/src/GenerateNonsymProblem_v1_ref.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/GenerateNonsymCoarseProblem.o: HPCG_SRC_PATH/src/GenerateNonsymCoarseProblem.cpp HPCG_SRC_PATH/src/GenerateNonsymCoarseProblem.hpp $(PRIMARY_HEADERS)

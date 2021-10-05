@@ -33,8 +33,8 @@ using std::endl;
 #include "hpcg.hpp"
 
 #include "TestGMRES.hpp"
-#include "CG.hpp"
 #include "GMRES.hpp"
+#include "GMRES_IR.hpp"
 
 /*!
   Test the correctness of the Preconditined CG implementation by using a system matrix with a dominant diagonal.
@@ -50,8 +50,10 @@ using std::endl;
 
   @see CG()
  */
-template<class SparseMatrix_type, class CGData_type, class Vector_type, class TestCGData_type>
-int TestGMRES(SparseMatrix_type & A, CGData_type & data, Vector_type & b, Vector_type & x, TestCGData_type & testcg_data) {
+
+
+template<class SparseMatrix_type, class SparseMatrix_type2, class CGData_type, class CGData_type2, class Vector_type, class TestCGData_type>
+int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & data, CGData_type2 & data_lo, Vector_type & b, Vector_type & x, TestCGData_type & testcg_data) {
 
   typedef typename SparseMatrix_type::scalar_type scalar_type;
 
@@ -89,40 +91,61 @@ int TestGMRES(SparseMatrix_type & A, CGData_type & data, Vector_type & b, Vector
   int niters = 0;
   scalar_type normr (0.0);
   scalar_type normr0 (0.0);
-  int maxIters = 5000;
+  int restart_length = 30;
+  int maxIters = 10000;
   int numberOfCgCalls = 1;
   scalar_type tolerance = 1.0e-12; // Set tolerance to reasonable value for grossly scaled diagonal terms
   testcg_data.expected_niters_no_prec = 12; // For the unpreconditioned CG call, we should take about 10 iterations, permit 12
   testcg_data.expected_niters_prec = 2;   // For the preconditioned case, we should take about 1 iteration, permit 2
   testcg_data.niters_max_no_prec = 0;
   testcg_data.niters_max_prec = 0;
-  for (int k=0; k<2; ++k)
+  //for (int k=0; k<2; ++k)
+  for (int k=1; k<2; ++k)
   { // This loop tests both unpreconditioned and preconditioned runs
     int expected_niters = testcg_data.expected_niters_no_prec;
     if (k==1) expected_niters = testcg_data.expected_niters_prec;
     for (int i=0; i< numberOfCgCalls; ++i) {
       ZeroVector(x); // Zero out x
-      #if 1
-      int ierr = GMRES(A, data, b, x, maxIters, tolerance, niters, normr, normr0, &times[0], k==1);
-      #else
-      int ierr = CG(A, data, b, x, maxIters, tolerance, niters, normr, normr0, &times[0], k==1);
-      #endif
-      if (ierr) HPCG_fout << "Error in call to CG: " << ierr << ".\n" << endl;
+      int ierr = GMRES(A, data, b, x, restart_length, maxIters, tolerance, niters, normr, normr0, &times[0], k==1);
+      if (ierr) HPCG_fout << "Error in call to GMRES: " << ierr << ".\n" << endl;
       if (niters <= expected_niters) {
         ++testcg_data.count_pass;
       } else {
         ++testcg_data.count_fail;
       }
-      if (k==0 && niters>testcg_data.niters_max_no_prec) testcg_data.niters_max_no_prec = niters; // Keep track of largest iter count
-      if (k==1 && niters>testcg_data.niters_max_prec) testcg_data.niters_max_prec = niters; // Same for preconditioned run
+      if (k==0 && niters > testcg_data.niters_max_no_prec) testcg_data.niters_max_no_prec = niters; // Keep track of largest iter count
+      if (k==1 && niters > testcg_data.niters_max_prec)    testcg_data.niters_max_prec = niters;    // Same for preconditioned run
       if (A.geom->rank==0) {
-        HPCG_fout << "Call [" << i << "] Number of Iterations [" << niters <<"] Scaled Residual [" << normr/normr0 << "]" << endl;
+        HPCG_fout << "Call [" << i << "] Number of GMRES Iterations [" << niters <<"] Scaled Residual [" << normr/normr0 << "]" << endl;
         if (niters > expected_niters)
           HPCG_fout << " Expected " << expected_niters << " iterations.  Performed " << niters << "." << endl;
       }
     }
   }
 
+  //for (int k=0; k<2; ++k)
+  for (int k=1; k<2; ++k)
+  { // This loop tests both unpreconditioned and preconditioned runs
+    int expected_niters = testcg_data.expected_niters_no_prec;
+    if (k==1) expected_niters = testcg_data.expected_niters_prec;
+    for (int i=0; i< numberOfCgCalls; ++i) {
+      ZeroVector(x); // Zero out x
+      int ierr = GMRES_IR(A, A_lo, data, data_lo, b, x, restart_length, maxIters, tolerance, niters, normr, normr0, &times[0], k==1);
+      if (ierr) HPCG_fout << "Error in call to GMRES-IR: " << ierr << ".\n" << endl;
+      if (niters <= expected_niters) {
+        ++testcg_data.count_pass;
+      } else {
+        ++testcg_data.count_fail;
+      }
+      if (k==0 && niters > testcg_data.niters_max_no_prec) testcg_data.niters_max_no_prec = niters; // Keep track of largest iter count
+      if (k==1 && niters > testcg_data.niters_max_prec)    testcg_data.niters_max_prec = niters;    // Same for preconditioned run
+      if (A.geom->rank==0) {
+        HPCG_fout << "Call [" << i << "] Number of GMRES-IR Iterations [" << niters <<"] Scaled Residual [" << normr/normr0 << "]" << endl;
+        if (niters > expected_niters)
+          HPCG_fout << " Expected " << expected_niters << " iterations.  Performed " << niters << "." << endl;
+      }
+    }
+  }
   // Restore matrix diagonal and RHS
   ReplaceMatrixDiagonal(A, origDiagA);
   CopyVector(origB, b);
@@ -135,11 +158,17 @@ int TestGMRES(SparseMatrix_type & A, CGData_type & data, Vector_type & b, Vector
   return 0;
 }
 
+template<class SparseMatrix_type, class CGData_type, class Vector_type, class TestCGData_type>
+int TestGMRES(SparseMatrix_type & A, CGData_type & data, Vector_type & b, Vector_type & x, TestCGData_type & testcg_data) {
+  TestGMRES(A, A, data, data, b, x, testcg_data);
+}
+
 
 /* --------------- *
  * specializations *
  * --------------- */
 
+// uniform
 template
 int TestGMRES< SparseMatrix<double>, CGData<double>, Vector<double>, TestCGData<double> >
   (SparseMatrix<double>&, CGData<double>&, Vector<double>&, Vector<double>&, TestCGData<double>&);
@@ -147,3 +176,20 @@ int TestGMRES< SparseMatrix<double>, CGData<double>, Vector<double>, TestCGData<
 template
 int TestGMRES< SparseMatrix<float>, CGData<float>, Vector<float>, TestCGData<float> >
   (SparseMatrix<float>&, CGData<float>&, Vector<float>&, Vector<float>&, TestCGData<float>&);
+
+
+
+// uniform version
+template
+int TestGMRES< SparseMatrix<double>, SparseMatrix<double>, CGData<double>, CGData<double>, Vector<double>, TestCGData<double> >
+  (SparseMatrix<double>&, SparseMatrix<double>&, CGData<double>&, CGData<double>&, Vector<double>&, Vector<double>&, TestCGData<double>&);
+
+template
+int TestGMRES< SparseMatrix<float>, SparseMatrix<float>, CGData<float>, CGData<float>, Vector<float>, TestCGData<float> >
+  (SparseMatrix<float>&, SparseMatrix<float>&, CGData<float>&, CGData<float>&, Vector<float>&, Vector<float>&, TestCGData<float>&);
+
+// mixed version
+template
+int TestGMRES< SparseMatrix<double>, SparseMatrix<float>, CGData<double>, CGData<float>, Vector<double>, TestCGData<double> >
+  (SparseMatrix<double>&, SparseMatrix<float>&, CGData<double>&, CGData<float>&, Vector<double>&, Vector<double>&, TestCGData<double>&);
+

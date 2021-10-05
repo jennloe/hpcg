@@ -28,6 +28,7 @@
 
 #include "GenerateNonsymProblem.hpp"
 #include "GenerateNonsymProblem_ref.hpp"
+#include "GenerateNonsymProblem_v1_ref.hpp"
 
 
 /*!
@@ -49,7 +50,8 @@ void GenerateNonsymProblem(SparseMatrix_type & A, Vector_type * b, Vector_type *
   // Furthermore, any code must work for general unstructured sparse matrices.  Special knowledge about the
   // specific nature of the sparsity pattern may not be explicitly used.
 
-  return(GenerateNonsymProblem_ref(A, b, x, xexact, init_vect));
+  return(GenerateNonsymProblem_v1_ref(A, b, x, xexact, init_vect));
+  //return(GenerateNonsymProblem_ref(A, b, x, xexact, init_vect));
 }
 
 
@@ -57,9 +59,15 @@ void GenerateNonsymProblem(SparseMatrix_type & A, Vector_type * b, Vector_type *
  * specializations *
  * --------------- */
 
+// uniform
 template
 void GenerateNonsymProblem< SparseMatrix<double>, Vector<double> >(SparseMatrix<double>&, Vector<double>*, Vector<double>*, Vector<double>*, bool);
 
 template
 void GenerateNonsymProblem< SparseMatrix<float>, Vector<float> >(SparseMatrix<float>&, Vector<float>*, Vector<float>*, Vector<float>*, bool);
+
+
+// mixed
+template
+void GenerateNonsymProblem< SparseMatrix<float>, Vector<double> >(SparseMatrix<float>&, Vector<double>*, Vector<double>*, Vector<double>*, bool);
 

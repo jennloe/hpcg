@@ -12,8 +12,8 @@
 // ***************************************************
 //@HEADER
 
-#ifndef GMRES_HPP
-#define GMRES_HPP
+#ifndef GMRES_IR_HPP
+#define GMRES_IR_HPP
 
 #include "SparseMatrix.hpp"
 #include "MultiVector.hpp"
@@ -21,11 +21,12 @@
 #include "SerialDenseMatrix.hpp"
 #include "CGData.hpp"
 
-template<class SparseMatrix_type, class CGData_type, class Vector_type>
-int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b, Vector_type & x,
-          const int restart_length, const int max_iter, const typename SparseMatrix_type::scalar_type tolerance,
-          int & niters, typename SparseMatrix_type::scalar_type & normr, typename SparseMatrix_type::scalar_type & normr0,
-          double * times, bool doPreconditioning);
+template<class SparseMatrix_type, class SparseMatrix_type2, class CGData_type, class CGData_type2, class Vector_type>
+int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
+             CGData_type & data, CGData_type2 & data_lo, const Vector_type & b_hi, Vector_type & x_hi,
+             const int restart_length, const int max_iter, const typename SparseMatrix_type::scalar_type tolerance,
+             int & niters, typename SparseMatrix_type::scalar_type & normr, typename SparseMatrix_type::scalar_type & normr0,
+             double * times, bool doPreconditioning);
 
 // this function will compute the Conjugate Gradient iterations.
 // geom - Domain and processor topology information
@@ -40,4 +41,4 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
 // times - array of timing information
 // doPreconditioning - bool to specify whether or not symmetric GS will be applied.
 
-#endif  // GMRES_HPP
+#endif  // GMRES_IR_HPP

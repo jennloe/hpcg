@@ -39,20 +39,23 @@
 
   @see ComputeWAXPBY
 */
-template<class Vector_type>
+template<class VectorX_type, class VectorY_type, class VectorW_type>
 int ComputeWAXPBY_ref(const local_int_t n,
-                      const typename Vector_type::scalar_type alpha,
-                      const Vector_type & x,
-                      const typename Vector_type::scalar_type beta,
-                      const Vector_type & y,
-                            Vector_type & w) {
+                      const typename VectorX_type::scalar_type alpha,
+                      const VectorX_type & x,
+                      const typename VectorY_type::scalar_type beta,
+                      const VectorY_type & y,
+                            VectorW_type & w) {
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);
 
-  typedef typename Vector_type::scalar_type scalar_type;
-  const scalar_type * const xv = x.values;
-  const scalar_type * const yv = y.values;
-  scalar_type * const wv = w.values;
+  typedef typename VectorX_type::scalar_type scalarX_type;
+  typedef typename VectorY_type::scalar_type scalarY_type;
+  typedef typename VectorW_type::scalar_type scalarW_type;
+
+  const scalarX_type * const xv = x.values;
+  const scalarY_type * const yv = y.values;
+        scalarW_type * const wv = w.values;
 
   if (alpha==1.0) {
 #ifndef HPCG_NO_OPENMP
@@ -79,8 +82,15 @@ int ComputeWAXPBY_ref(const local_int_t n,
  * specializations *
  * --------------- */
 
+// uniform
 template
-int ComputeWAXPBY_ref< Vector<double> >(int, double, Vector<double> const&, double, Vector<double> const&, Vector<double>&);
+int ComputeWAXPBY_ref< Vector<double>, Vector<double>, Vector<double> >(int, double, Vector<double> const&, double, Vector<double> const&, Vector<double>&);
 
 template
-int ComputeWAXPBY_ref< Vector<float> >(int, float, Vector<float> const&, float, Vector<float> const&, Vector<float>&);
+int ComputeWAXPBY_ref< Vector<float>, Vector<float>, Vector<float> >(int, float, Vector<float> const&, float, Vector<float> const&, Vector<float>&);
+
+
+// mixed
+template
+int ComputeWAXPBY_ref< Vector<double>, Vector<float>, Vector<double> >(int, double, Vector<double> const&, float, Vector<float> const&, Vector<double>&);
+

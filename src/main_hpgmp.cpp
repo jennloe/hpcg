@@ -66,7 +66,7 @@ using std::endl;
 #include "GenerateNonsymCoarseProblem.hpp"
 
 typedef double scalar_type;
-//typedef float scalar_type;
+//typedef float  scalar_type;
 typedef Vector<scalar_type> Vector_type;
 typedef SparseMatrix<scalar_type> SparseMatrix_type;
 typedef CGData<scalar_type> CGData_type;
@@ -182,6 +182,7 @@ int main(int argc, char * argv[]) {
   // First load vector with random values
   FillRandomVector(x_overlap);
 
+#if 0
   int numberOfCalls = 10;
   if (quickPath) numberOfCalls = 1; //QuickPath means we do on one call of each block of repetitive code
   double t_begin = mytimer();
@@ -195,7 +196,7 @@ int main(int argc, char * argv[]) {
 #ifdef HPCG_DEBUG
   if (rank==0) HPCG_fout << "Total SpMV+MG timing phase execution time in main (sec) = " << mytimer() - t1 << endl;
 #endif
-
+#endif
 
 
   //////////////////////////////

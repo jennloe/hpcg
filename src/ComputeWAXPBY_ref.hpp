@@ -16,12 +16,12 @@
 #define COMPUTEWAXPBY_REF_HPP
 #include "Vector.hpp"
 
-template<class Vector_type>
+template<class VectorX_type, class VectorY_type, class VectorW_type>
 int ComputeWAXPBY_ref(const local_int_t n,
-                      const typename Vector_type::scalar_type alpha,
-                      const Vector_type & x,
-                      const typename Vector_type::scalar_type beta,
-                      const Vector_type & y,
-                            Vector_type & w);
+                      const typename VectorX_type::scalar_type alpha,
+                      const VectorX_type & x,
+                      const typename VectorY_type::scalar_type beta,
+                      const VectorY_type & y,
+                            VectorW_type & w);
 
 #endif // COMPUTEWAXPBY_REF_HPP

@@ -23,6 +23,7 @@
 #endif
 #include "ComputeGS_Forward_ref.hpp"
 #include <cassert>
+#include <iostream>
 
 /*!
   Computes one forward step of Gauss-Seidel:
@@ -61,7 +62,7 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
   const scalar_type * const rv = r.values;
   scalar_type * const xv = x.values;
 
-  for (local_int_t i=0; i< nrow; i++) {
+  for (local_int_t i=0; i < nrow; i++) {
     const scalar_type * const currentValues = A.matrixValues[i];
     const local_int_t * const currentColIndices = A.mtxIndL[i];
     const int currentNumberOfNonzeros = A.nonzerosInRow[i];

@@ -234,25 +234,27 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
         HPCG_fout << "GMRES restart: k = "<< k << " (" << niters << ")" << std::endl;
     #endif
     // > update x
-/*printf( "\n k = %d\n",k );
-printf( "R=[\n" );
-for (int i = 0; i < k; i++) {
-  for (int j = 0; j < k; j++) printf("%e ",H.values[i + j * H.m] );
-  printf("\n");
-}
-printf("];\n\n");
-printf( "t=[\n" );
-for (int i = 0; i < k; i++) printf( "%e\n",t.values[i]);
-printf("];\n\n");
+/*if (A.geom->rank==0) {
+  printf( "\n k = %d\n",k );
+  printf( "R=[\n" );
+  for (int i = 0; i < k; i++) {
+    for (int j = 0; j < k; j++) printf("%e ",H.values[i + j * H.m] );
+    printf("\n");
+  }
+  printf("];\n\n");
+  printf( "t=[\n" );
+  for (int i = 0; i < k; i++) printf( "%e\n",t.values[i]);
+  printf("];\n\n");
 
-if (niters == 1) {
- printf( " nrow = %d, max_iter = %d\n",nrow,max_iter );
- printf( " Q = [\n" );
- for (int i = 0; i < nrow; i++) {
-   for (int j = 0; j <= k-1; j++) printf( "%e ",Q.values[i + j * nrow] );
-   printf("\n");
- }
- printf( " ];\n\n" );
+  if (niters == 1) {
+    printf( " nrow = %d, max_iter = %d\n",nrow,max_iter );
+    printf( " Q = [\n" );
+    for (int i = 0; i < nrow; i++) {
+      for (int j = 0; j <= k-1; j++) printf( "%e ",Q.values[i + j * nrow] );
+      printf("\n");
+    }
+    printf( " ];\n\n" );
+  }
 }*/
     ComputeTRSM(k-1, one, H, t);
     if (doPreconditioning) {

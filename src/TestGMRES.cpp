@@ -35,6 +35,7 @@ using std::endl;
 #include "TestGMRES.hpp"
 #include "GMRES.hpp"
 #include "GMRES_IR.hpp"
+#include "mytimer.hpp"
 
 /*!
   Test the correctness of the Preconditined CG implementation by using a system matrix with a dominant diagonal.
@@ -92,7 +93,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
   scalar_type normr (0.0);
   scalar_type normr0 (0.0);
   int restart_length = 30;
-  int maxIters = 10000;
+  int maxIters = 5000;
   int numberOfCgCalls = 1;
   scalar_type tolerance = 1.0e-12; // Set tolerance to reasonable value for grossly scaled diagonal terms
   testcg_data.expected_niters_no_prec = 12; // For the unpreconditioned CG call, we should take about 10 iterations, permit 12
@@ -106,7 +107,10 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
     if (k==1) expected_niters = testcg_data.expected_niters_prec;
     for (int i=0; i< numberOfCgCalls; ++i) {
       ZeroVector(x); // Zero out x
+
+      double time_tic = mytimer();
       int ierr = GMRES(A, data, b, x, restart_length, maxIters, tolerance, niters, normr, normr0, &times[0], k==1);
+      double time_solve = mytimer() - time_tic;
       if (ierr) HPCG_fout << "Error in call to GMRES: " << ierr << ".\n" << endl;
       if (niters <= expected_niters) {
         ++testcg_data.count_pass;
@@ -117,12 +121,13 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
       if (k==1 && niters > testcg_data.niters_max_prec)    testcg_data.niters_max_prec = niters;    // Same for preconditioned run
       if (A.geom->rank==0) {
         HPCG_fout << "Call [" << i << "] Number of GMRES Iterations [" << niters <<"] Scaled Residual [" << normr/normr0 << "]" << endl;
-        if (niters > expected_niters)
-          HPCG_fout << " Expected " << expected_niters << " iterations.  Performed " << niters << "." << endl;
+        HPCG_fout << " Expected " << expected_niters << " iterations.  Performed " << niters << "." << endl;
+        HPCG_fout << " Time     " << time_solve << " seconds." << endl;
       }
     }
   }
 
+#if 0
   //for (int k=0; k<2; ++k)
   for (int k=1; k<2; ++k)
   { // This loop tests both unpreconditioned and preconditioned runs
@@ -130,7 +135,9 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
     if (k==1) expected_niters = testcg_data.expected_niters_prec;
     for (int i=0; i< numberOfCgCalls; ++i) {
       ZeroVector(x); // Zero out x
+      double time_tic = mytimer();
       int ierr = GMRES_IR(A, A_lo, data, data_lo, b, x, restart_length, maxIters, tolerance, niters, normr, normr0, &times[0], k==1);
+      double time_solve = mytimer() - time_tic;
       if (ierr) HPCG_fout << "Error in call to GMRES-IR: " << ierr << ".\n" << endl;
       if (niters <= expected_niters) {
         ++testcg_data.count_pass;
@@ -141,11 +148,12 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
       if (k==1 && niters > testcg_data.niters_max_prec)    testcg_data.niters_max_prec = niters;    // Same for preconditioned run
       if (A.geom->rank==0) {
         HPCG_fout << "Call [" << i << "] Number of GMRES-IR Iterations [" << niters <<"] Scaled Residual [" << normr/normr0 << "]" << endl;
-        if (niters > expected_niters)
-          HPCG_fout << " Expected " << expected_niters << " iterations.  Performed " << niters << "." << endl;
+        HPCG_fout << " Expected " << expected_niters << " iterations.  Performed " << niters << "." << endl;
+        HPCG_fout << " Time     " << time_solve << " seconds." << endl;
       }
     }
   }
+#endif
   // Restore matrix diagonal and RHS
   ReplaceMatrixDiagonal(A, origDiagA);
   CopyVector(origB, b);

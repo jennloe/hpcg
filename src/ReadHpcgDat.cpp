@@ -55,7 +55,6 @@ ReadHpcgDat(int *localDimensions, int *secondsPerRun, int *localProcDimensions) 
     {
       localDimensions[i] = 16;
     }
-    //printf( " localDimensions[%d] = %d\n",i,localDimensions[i] );
   }
 
   SkipUntilEol( hpcgStream ); // skip the rest of the second line

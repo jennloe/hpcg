@@ -1,6 +1,8 @@
+//This file should contain MPI utils only!!
+#ifndef HPCG_NO_MPI
 
-#ifndef HPGMP_UTILS_HPP
-#define HPGMP_UTILS_HPP
+#ifndef HPGMP_UTILS_MPI_HPP
+#define HPGMP_UTILS_MPI_HPP
 
 // MpiTypeTraits (from Teuchos)
 template<class T>
@@ -32,3 +34,5 @@ public:
 };
 
 #endif
+
+#endif // ifndef HPCG_NO_MPI

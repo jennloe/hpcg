@@ -19,12 +19,12 @@
  */
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
+#include "Utils_MPI.hpp"
 #endif
 #ifndef HPCG_NO_OPENMP
 #include <omp.h>
 #endif
 
-#include "Utils.hpp"
 #include "Vector.hpp"
 
 #ifdef HPCG_DETAILED_DEBUG

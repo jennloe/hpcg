@@ -19,7 +19,6 @@
  */
 
 #include "ComputeMG_ref.hpp"
-#include "ComputeSYMGS_ref.hpp"
 #include "ComputeGS_Forward_ref.hpp"
 #include "ComputeSPMV_ref.hpp"
 #include "ComputeRestriction_ref.hpp"
@@ -46,11 +45,7 @@ int ComputeMG_ref(const SparseMatrix_type & A, const Vector_type & r, Vector_typ
   int ierr = 0;
   if (A.mgData!=0) { // Go to next coarse level if defined
     int numberOfPresmootherSteps = A.mgData->numberOfPresmootherSteps;
-    if (symmetric) {
-      for (int i=0; i< numberOfPresmootherSteps; ++i) ierr += ComputeSYMGS_ref(A, r, x);
-    } else {
-      for (int i=0; i< numberOfPresmootherSteps; ++i) ierr += ComputeGS_Forward_ref(A, r, x);
-    }
+    for (int i=0; i< numberOfPresmootherSteps; ++i) ierr += ComputeGS_Forward_ref(A, r, x);
 
     if (ierr!=0) return ierr;
     ierr = ComputeSPMV_ref(A, x, *A.mgData->Axf); if (ierr!=0) return ierr;
@@ -59,19 +54,11 @@ int ComputeMG_ref(const SparseMatrix_type & A, const Vector_type & r, Vector_typ
     ierr = ComputeMG_ref(*A.Ac,*A.mgData->rc, *A.mgData->xc, symmetric);  if (ierr!=0) return ierr;
     ierr = ComputeProlongation_ref(A, x);  if (ierr!=0) return ierr;
     int numberOfPostsmootherSteps = A.mgData->numberOfPostsmootherSteps;
-    if (symmetric) {
-      for (int i=0; i< numberOfPostsmootherSteps; ++i) ierr += ComputeSYMGS_ref(A, r, x);
-    } else {
-      for (int i=0; i< numberOfPostsmootherSteps; ++i) ierr += ComputeGS_Forward_ref(A, r, x);
-    }
+    for (int i=0; i< numberOfPostsmootherSteps; ++i) ierr += ComputeGS_Forward_ref(A, r, x);
     if (ierr!=0) return ierr;
   }
   else {
-    if (symmetric) {
-      ierr = ComputeSYMGS_ref(A, r, x);
-    } else {
-      ierr = ComputeGS_Forward_ref(A, r, x);
-    }
+    ierr = ComputeGS_Forward_ref(A, r, x);
     if (ierr!=0) return ierr;
   }
   return 0;

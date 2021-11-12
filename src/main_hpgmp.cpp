@@ -15,11 +15,11 @@
 /*!
  @file main.cpp
 
- HPCG routine
+ HPGMP routine
  */
 
-// Main routine of a program that calls the HPCG conjugate gradient
-// solver to solve the problem, and then prints results.
+// Main routine of a program that calls the HPGMP GMRES and GMRES-IR 
+// solvers to solve the problem, and then prints results.
 
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
@@ -61,7 +61,6 @@ using std::endl;
 #include "GenerateNonsymCoarseProblem.hpp"
 
 typedef double scalar_type;
-//typedef float  scalar_type;
 typedef Vector<scalar_type> Vector_type;
 typedef SparseMatrix<scalar_type> SparseMatrix_type;
 typedef CGData<scalar_type> CGData_type;

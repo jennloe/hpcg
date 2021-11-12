@@ -13,7 +13,7 @@
 //@HEADER
 
 /*!
- @file TestCG.cpp
+ @file TestGMRES.cpp
 
  HPCG routine
  */

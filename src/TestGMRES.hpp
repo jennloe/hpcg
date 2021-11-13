@@ -21,7 +21,7 @@
 #ifndef TESTGMRES_HPP
 #define TESTGMRES_HPP
 
-#include "hpcg.hpp"
+#include "hpgmp.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 #include "CGData.hpp"

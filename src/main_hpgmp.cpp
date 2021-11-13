@@ -35,7 +35,7 @@ using std::endl;
 
 #include <vector>
 
-#include "hpcg.hpp"
+#include "hpgmp.hpp"
 
 #include "SetupProblem.hpp"
 #include "CheckAspectRatio.hpp"

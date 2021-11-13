@@ -21,7 +21,7 @@
 #include <fstream>
 #include <cmath>
 
-#include "hpcg.hpp"
+#include "hpgmp.hpp"
 
 #include "GMRES_IR.hpp"
 #include "mytimer.hpp"

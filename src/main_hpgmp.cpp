@@ -56,6 +56,7 @@ using std::endl;
 #include "CGData.hpp"
 #include "TestNorms.hpp"
 
+#include "GMRES.hpp"
 #include "TestGMRES.hpp"
 #include "GenerateNonsymProblem.hpp"
 #include "GenerateNonsymCoarseProblem.hpp"
@@ -96,7 +97,7 @@ int main(int argc, char * argv[]) {
 
   // Check if QuickPath option is enabled.
   // If the running time is set to zero, we minimize all paths through the program
-  bool quickPath = (params.runningTime==0);
+  bool quickPath = 1; //TODO: Change back to the following after=(params.runningTime==0);
 
   int size = params.comm_size, rank = params.comm_rank; // Number of MPI processes, My process ID
 
@@ -176,7 +177,6 @@ int main(int argc, char * argv[]) {
   // First load vector with random values
   FillRandomVector(x_overlap);
 
-#if 0
   int numberOfCalls = 10;
   if (quickPath) numberOfCalls = 1; //QuickPath means we do on one call of each block of repetitive code
   double t_begin = mytimer();
@@ -190,6 +190,49 @@ int main(int argc, char * argv[]) {
 #ifdef HPCG_DEBUG
   if (rank==0) HPCG_fout << "Total SpMV+MG timing phase execution time in main (sec) = " << mytimer() - t1 << endl;
 #endif
+
+
+  ///////////////////////////////
+  // Reference GMRES Timing Phase //
+  ///////////////////////////////
+
+#ifdef HPCG_DEBUG
+  t1 = mytimer();
+#endif
+  int global_failure = 0; // assume all is well: no failures
+
+  int niters = 0;
+  int totalNiters_ref = 0;
+  scalar_type normr = 0.0;
+  scalar_type normr0 = 0.0;
+  int restart_length = 50;
+  int refMaxIters = 50;
+  numberOfCalls = 1; // Only need to run the residual reduction analysis once
+
+  // Compute the residual reduction for the natural ordering and reference kernels
+  std::vector< double > ref_times(9,0.0);
+  scalar_type tolerance = 0.0; // Set tolerance to zero to make all runs do maxIters iterations
+  int err_count = 0;
+  for (int i=0; i< numberOfCalls; ++i) {
+    ZeroVector(x);
+    ierr = GMRES(A, data, b, x, restart_length, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
+    if (ierr) ++err_count; // count the number of errors in GMRES.
+    totalNiters_ref += niters;
+  }
+  if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to reference GMRES." << endl;
+  scalar_type refTolerance = normr / normr0;
+
+  // Call user-tunable set up function.
+  double t7 = mytimer();
+  OptimizeProblem(A, data, b, x, xexact);
+  t7 = mytimer() - t7;
+  times[7] = t7;
+#ifdef HPCG_DEBUG
+  if (rank==0) HPCG_fout << "Total problem setup time in main (sec) = " << mytimer() - t1 << endl;
+#endif
+
+#ifdef HPCG_DETAILED_DEBUG
+  if (geom->size == 1) WriteProblem(*geom, A, b, x, xexact);
 #endif
 
 

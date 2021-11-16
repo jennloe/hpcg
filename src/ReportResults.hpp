@@ -15,7 +15,7 @@
 #ifndef REPORTRESULTS_HPP
 #define REPORTRESULTS_HPP
 #include "SparseMatrix.hpp"
-#include "TestCG.hpp"
+#include "TestGMRES.hpp"
 #include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
 

@@ -147,7 +147,7 @@ int main(int argc, char * argv[]) {
 
   // Setup the problem
   SparseMatrix_type A;
-  CGData_type data;
+  CGData_type data;//TODO What is this for?
 
   bool init_vect = true;
   Vector_type b, x, xexact;
@@ -157,6 +157,9 @@ int main(int argc, char * argv[]) {
 
   setup_time = mytimer() - setup_time; // Capture total time of setup
   times[9] = setup_time; // Save it for reporting
+
+  //TODO: This is the spot where HPCG runs check problem.  Do we need CheckProblem?
+  //Probably need to check multigird (and Traingular solve?) here. 
 
 
   ////////////////////////////////////
@@ -239,18 +242,32 @@ int main(int argc, char * argv[]) {
   //////////////////////////////
   // Validation Testing Phase //
   //////////////////////////////
-
   TestCGData_type testcg_data;
+  //
+//Don't need this anymore.  both double and MP GMRES currently tested in next call. 
+/*
+#ifdef HPCG_DEBUG
+  t1 = mytimer();
+#endif
   testcg_data.count_pass = testcg_data.count_fail = 0;
+  TestGMRES(A, data, b, x, testcg_data);
+
+  //TODO: Replace with a test of non-symm MG Gauss-Seidel smooother.  Pass data as arg to ReportResults.
+  //TestSymmetryData_type testsymmetry_data;
+  //TestSymmetry(A, b, xexact, testsymmetry_data);
+
+#ifdef HPCG_DEBUG
+  if (rank==0) HPCG_fout << "Total validation (TestGMRES) execution time in main (sec) = " << mytimer() - t1 << endl;
+#endif
 
 #ifdef HPCG_DEBUG
   t1 = mytimer();
 #endif
-  TestGMRES(A, data, b, x, testcg_data);
-#ifdef HPCG_DEBUG
-  if (rank==0) HPCG_fout << "Total validation (uniform-precision TestGMRES) execution time in main (sec) = " << mytimer() - t1 << endl;
-#endif
+*/ 
 
+/////////////////////////////////////////
+// Mixed precision test phase from Ichi:
+// ////////////////////////////////////
   init_vect = false;
   SparseMatrix_type2 A2;
   CGData_type2 data2;
@@ -265,6 +282,36 @@ int main(int argc, char * argv[]) {
   if (rank==0) HPCG_fout << "Total validation (mixed-precision TestGMRES) execution time in main (sec) = " << mytimer() - t1 << endl;
 #endif
 
+#ifdef HPCG_DEBUG
+  t1 = mytimer();
+#endif
+  //////////////////////////////
+  // Optimized CG Setup Phase //
+  //////////////////////////////
+  int optMaxIters = 10*refMaxIters;
+  ///////////////////////////////
+  // Optimized CG Timing Phase //
+  ///////////////////////////////
+  int numberOfCgSets = 1; //TODO change this. 
+  
+  TestNormsData_type testnorms_data;
+
+  ////////////////////
+  // Report Results //
+  ////////////////////
+
+  // Report results to YAML file
+  ReportResults(A, numberOfMgLevels, numberOfCgSets, refMaxIters, optMaxIters, &times[0], testcg_data, testnorms_data, global_failure, quickPath);
+
+  // Clean up
+  DeleteMatrix(A); // This delete will recursively delete all coarse grid data
+  DeleteCGData(data);
+  DeleteVector(x);
+  DeleteVector(b);
+  DeleteVector(xexact);
+  DeleteVector(x_overlap);
+  DeleteVector(b_computed);
+  //delete [] testnorms_data.values;
 
   // Finish up
   HPCG_Finalize();

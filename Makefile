@@ -21,7 +21,7 @@ HPCG_DEPS = src/ComputeResidual.o \
          src/GMRES.o src/GMRES_IR.o \
          src/ComputeGS_Forward.o src/ComputeGS_Forward_ref.o \
          src/SetupProblem.o \
-         src/GenerateNonsymProblem.o src/GenerateNonsymProblem_ref.o src/GenerateNonsymProblem_v1_ref.o \
+         src/GenerateNonsymProblem.o src/GenerateNonsymProblem_v1_ref.o \
          src/GenerateNonsymCoarseProblem.o 
 
 bin/xhpgmp: src/main_hpgmp.o $(HPCG_DEPS)

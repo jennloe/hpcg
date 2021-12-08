@@ -47,7 +47,6 @@ HPCG_DEPS = src/ComputeResidual.o \
 	    src/ComputeGEMV.o \
 			src/SetupProblem.o \
 	    src/GenerateNonsymProblem.o \
-	    src/GenerateNonsymProblem_ref.o \
 	    src/GenerateNonsymProblem_v1_ref.o \
 	    src/GenerateNonsymCoarseProblem.o \
 
@@ -190,9 +189,6 @@ src/SetupProblem.o: HPCG_SRC_PATH/src/SetupProblem.cpp HPCG_SRC_PATH/src/SetupPr
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/GenerateNonsymProblem.o: HPCG_SRC_PATH/src/GenerateNonsymProblem.cpp HPCG_SRC_PATH/src/GenerateNonsymProblem.hpp HPCG_SRC_PATH/src/GenerateNonsymProblem_v1_ref.cpp HPCG_SRC_PATH/src/GenerateNonsymProblem_v1_ref.hpp $(PRIMARY_HEADERS)
-	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
-
-src/GenerateNonsymProblem_ref.o: HPCG_SRC_PATH/src/GenerateNonsymProblem_ref.cpp HPCG_SRC_PATH/src/GenerateNonsymProblem_ref.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/GenerateNonsymProblem_v1_ref.o: HPCG_SRC_PATH/src/GenerateNonsymProblem_v1_ref.cpp HPCG_SRC_PATH/src/GenerateNonsymProblem_v1_ref.hpp $(PRIMARY_HEADERS)

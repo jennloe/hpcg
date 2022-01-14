@@ -21,12 +21,12 @@
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
 #include "mytimer.hpp"
+#include "Utils_MPI.hpp"
 #endif
 #ifndef HPCG_NO_OPENMP
 #include <omp.h>
 #endif
 #include <cassert>
-#include "Utils.hpp"
 #include "ComputeDotProduct_ref.hpp"
 
 /*!
@@ -51,7 +51,9 @@ int ComputeDotProduct_ref(const local_int_t n, const Vector_type & x, const Vect
   assert(y.localLength>=n);
 
   typedef typename Vector_type::scalar_type scalar_type;
+#ifndef HPCG_NO_MPI
   MPI_Datatype MPI_SCALAR_TYPE = MpiTypeTraits<scalar_type>::getType ();
+#endif
 
   scalar_type local_result (0.0);
   scalar_type * xv = x.values;

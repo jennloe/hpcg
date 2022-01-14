@@ -34,7 +34,7 @@ const char* NULLDEVICE="/dev/null";
 #include <fstream>
 #include <iostream>
 
-#include "hpcg.hpp"
+#include "hpgmp.hpp"
 
 #include "ReadHpcgDat.hpp"
 
@@ -149,14 +149,14 @@ HPCG_Init(int * argc_p, char ** *argv_p, HPCG_Params & params) {
 
   time ( &rawtime );
   ptm = localtime(&rawtime);
-  sprintf( fname, "hpcg%04d%02d%02dT%02d%02d%02d.txt",
+  sprintf( fname, "hpgmp%04d%02d%02dT%02d%02d%02d.txt",
       1900 + ptm->tm_year, ptm->tm_mon+1, ptm->tm_mday, ptm->tm_hour, ptm->tm_min, ptm->tm_sec );
 
   if (0 == params.comm_rank) {
     HPCG_fout.open(fname);
   } else {
 #if defined(HPCG_DEBUG) || defined(HPCG_DETAILED_DEBUG)
-    sprintf( fname, "hpcg%04d%02d%02dT%02d%02d%02d_%d.txt",
+    sprintf( fname, "hpgmp%04d%02d%02dT%02d%02d%02d_%d.txt",
         1900 + ptm->tm_year, ptm->tm_mon+1, ptm->tm_mday, ptm->tm_hour, ptm->tm_min, ptm->tm_sec, params.comm_rank );
     HPCG_fout.open(fname);
 #else

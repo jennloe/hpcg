@@ -13,7 +13,7 @@
 //@HEADER
 
 /*!
- @file hpcg.hpp
+ @file hpgmp.hpp
 
  HPCG data structures and functions
  */

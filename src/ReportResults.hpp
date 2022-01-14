@@ -15,13 +15,13 @@
 #ifndef REPORTRESULTS_HPP
 #define REPORTRESULTS_HPP
 #include "SparseMatrix.hpp"
-#include "TestCG.hpp"
-#include "TestSymmetry.hpp"
+#include "TestGMRES.hpp"
+//#include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
 
-template<class SparseMatrix_type, class TestCGData_type, class TestSymmetryData_type, class TestNormsData_type>
+template<class SparseMatrix_type, class TestCGData_type, class TestNormsData_type>//class TestSymmetryData_type, 
 void ReportResults(const SparseMatrix_type & A, int numberOfMgLevels, int numberOfCgSets, int refMaxIters, int optMaxIters, double times[],
-                   const TestCGData_type & testcg_data, const TestSymmetryData_type & testsymmetry_data, const TestNormsData_type & testnorms_data,
+                   const TestCGData_type & testcg_data, const TestNormsData_type & testnorms_data,
                    int global_failure, bool quickPath);
 
 #endif // REPORTRESULTS_HPP

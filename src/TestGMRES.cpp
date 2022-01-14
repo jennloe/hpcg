@@ -13,7 +13,7 @@
 //@HEADER
 
 /*!
- @file TestCG.cpp
+ @file TestGMRES.cpp
 
  HPCG routine
  */
@@ -30,7 +30,7 @@
 #include <iostream>
 using std::endl;
 #include <vector>
-#include "hpcg.hpp"
+#include "hpgmp.hpp"
 
 #include "TestGMRES.hpp"
 #include "GMRES.hpp"
@@ -57,19 +57,26 @@ template<class SparseMatrix_type, class SparseMatrix_type2, class CGData_type, c
 int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & data, CGData_type2 & data_lo, Vector_type & b, Vector_type & x, TestCGData_type & testcg_data) {
 
   typedef typename SparseMatrix_type::scalar_type scalar_type;
+  typedef typename SparseMatrix_type2::scalar_type scalar_type2;
+  typedef Vector<scalar_type2> Vector_type2;
 
   // Use this array for collecting timing information
   std::vector< double > times(8,0.0);
   // Temporary storage for holding original diagonal and RHS
   Vector_type origDiagA, exaggeratedDiagA, origB;
+  Vector_type2 origDiagA2, exagDiagA2;
   InitializeVector(origDiagA, A.localNumberOfRows);
+  InitializeVector(origDiagA2, A_lo.localNumberOfRows);
   InitializeVector(exaggeratedDiagA, A.localNumberOfRows);
+  InitializeVector(exagDiagA2, A_lo.localNumberOfRows);
   InitializeVector(origB, A.localNumberOfRows);
   CopyMatrixDiagonal(A, origDiagA);
+  CopyMatrixDiagonal(A_lo, origDiagA2);
   CopyVector(origDiagA, exaggeratedDiagA);
+  CopyVector(origDiagA2, exagDiagA2);
   CopyVector(b, origB);
 
-#if 1
+#if 0
   if (A.geom->rank==0) HPCG_fout << std::endl << " ** skippping diagonal exaggeration ** " << std::endl << std::endl;
 #else
   // Modify the matrix diagonal to greatly exaggerate diagonal values.
@@ -79,14 +86,18 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
     global_int_t globalRowID = A.localToGlobalMap[i];
     if (globalRowID<9) {
       scalar_type scale = (globalRowID+2)*1.0e6;
+      scalar_type2 scale2 = (globalRowID+2)*1.0e6;
       ScaleVectorValue(exaggeratedDiagA, i, scale);
+      ScaleVectorValue(exagDiagA2, i, scale2);
       ScaleVectorValue(b, i, scale);
     } else {
       ScaleVectorValue(exaggeratedDiagA, i, 1.0e6);
+      ScaleVectorValue(exagDiagA2, i, 1.0e6);
       ScaleVectorValue(b, i, 1.0e6);
     }
   }
   ReplaceMatrixDiagonal(A, exaggeratedDiagA);
+  ReplaceMatrixDiagonal(A_lo, exagDiagA2);//TODO probably some funny casting here... need to do properly.
 #endif
 
   int niters = 0;
@@ -94,14 +105,13 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
   scalar_type normr0 (0.0);
   int restart_length = 30;
   int maxIters = 5000;
-  int numberOfCgCalls = 1;
+  int numberOfCgCalls = 2;
   scalar_type tolerance = 1.0e-12; // Set tolerance to reasonable value for grossly scaled diagonal terms
   testcg_data.expected_niters_no_prec = 12; // For the unpreconditioned CG call, we should take about 10 iterations, permit 12
   testcg_data.expected_niters_prec = 2;   // For the preconditioned case, we should take about 1 iteration, permit 2
   testcg_data.niters_max_no_prec = 0;
   testcg_data.niters_max_prec = 0;
-  //for (int k=0; k<2; ++k)
-  for (int k=1; k<2; ++k)
+  for (int k=0; k<2; ++k)
   { // This loop tests both unpreconditioned and preconditioned runs
     int expected_niters = testcg_data.expected_niters_no_prec;
     if (k==1) expected_niters = testcg_data.expected_niters_prec;
@@ -109,7 +119,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
       ZeroVector(x); // Zero out x
 
       double time_tic = mytimer();
-      int ierr = GMRES(A, data, b, x, restart_length, maxIters, tolerance, niters, normr, normr0, &times[0], k==1);
+      int ierr = GMRES(A, data, b, x, restart_length, maxIters, tolerance, niters, normr, normr0, &times[0], k);
       double time_solve = mytimer() - time_tic;
       if (ierr) HPCG_fout << "Error in call to GMRES: " << ierr << ".\n" << endl;
       if (niters <= expected_niters) {
@@ -120,6 +130,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
       if (k==0 && niters > testcg_data.niters_max_no_prec) testcg_data.niters_max_no_prec = niters; // Keep track of largest iter count
       if (k==1 && niters > testcg_data.niters_max_prec)    testcg_data.niters_max_prec = niters;    // Same for preconditioned run
       if (A.geom->rank==0) {
+        HPCG_fout << "Calling GMRES (all double) for testing: " << endl;
         HPCG_fout << "Call [" << i << "] Number of GMRES Iterations [" << niters <<"] Scaled Residual [" << normr/normr0 << "]" << endl;
         HPCG_fout << " Expected " << expected_niters << " iterations.  Performed " << niters << "." << endl;
         HPCG_fout << " Time     " << time_solve << " seconds." << endl;
@@ -127,7 +138,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
     }
   }
 
-#if 0
+#if 1
   //for (int k=0; k<2; ++k)
   for (int k=1; k<2; ++k)
   { // This loop tests both unpreconditioned and preconditioned runs
@@ -136,7 +147,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
     for (int i=0; i< numberOfCgCalls; ++i) {
       ZeroVector(x); // Zero out x
       double time_tic = mytimer();
-      int ierr = GMRES_IR(A, A_lo, data, data_lo, b, x, restart_length, maxIters, tolerance, niters, normr, normr0, &times[0], k==1);
+      int ierr = GMRES_IR(A, A_lo, data, data_lo, b, x, restart_length, maxIters, tolerance, niters, normr, normr0, &times[0], k);
       double time_solve = mytimer() - time_tic;
       if (ierr) HPCG_fout << "Error in call to GMRES-IR: " << ierr << ".\n" << endl;
       if (niters <= expected_niters) {
@@ -156,6 +167,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
 #endif
   // Restore matrix diagonal and RHS
   ReplaceMatrixDiagonal(A, origDiagA);
+  ReplaceMatrixDiagonal(A_lo, origDiagA2);//TODO again, probably funny casting here. 
   CopyVector(origB, b);
   // Delete vectors
   DeleteVector(origDiagA);

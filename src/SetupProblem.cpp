@@ -37,25 +37,17 @@ void SetupProblem(int numberOfMgLevels, SparseMatrix_type & A, Geometry * geom, 
 
   InitializeSparseMatrix(A, geom);
 
-  #define NONSYMM_PROBLEM
-  #ifdef NONSYMM_PROBLEM
   GenerateNonsymProblem(A, b, x, xexact, init_vect);
-  #else
-  GenerateProblem(A, b, x, xexact, init_vect);
-  #endif
-  SetupHalo(A);
+  SetupHalo(A); //TODO: This is currently called in main... Should it really be called in both places?  Which one? 
 
   SparseMatrix_type * curLevelMatrix = &A;
   for (int level = 1; level< numberOfMgLevels; ++level) {
-    #ifdef NONSYMM_PROBLEM
     GenerateNonsymCoarseProblem(*curLevelMatrix);
-    #else
-    GenerateCoarseProblem(*curLevelMatrix);
-    #endif
     curLevelMatrix = curLevelMatrix->Ac; // Make the just-constructed coarse grid the next level
   }
 
-  #ifndef NONSYMM_PROBLEM
+//TODO: Reinstate "CheckProblem" for nonsymm version. 
+/*  #ifndef NONSYMM_PROBLEM
   curLevelMatrix = &A;
   Vector_type * curb = b;
   Vector_type * curx = x;
@@ -67,7 +59,7 @@ void SetupProblem(int numberOfMgLevels, SparseMatrix_type & A, Geometry * geom, 
      curx = 0;
      curxexact = 0;
   }
-  #endif
+  #endif */
 
   InitializeSparseCGData(A, data);
 }

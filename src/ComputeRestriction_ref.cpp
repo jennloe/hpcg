@@ -48,10 +48,28 @@ int ComputeRestriction_ref(const SparseMatrix_type & A, const Vector_type & rf) 
   local_int_t * f2c = A.mgData->f2cOperator;
   local_int_t nc = A.mgData->rc->localLength;
 
+  #ifdef HPCG_WITH_CUDA
+  if (A.geom->rank==0) printf( " Restriction on CPU\n" );
+  // Copy the whole prologated vector from Device to Host
+  local_int_t n = rf.localLength;
+  scalar_type * d_rfv = rf.d_values;
+  if (cudaSuccess != cudaMemcpy(rfv, d_rfv, n*sizeof(scalar_type), cudaMemcpyDeviceToHost)) {
+    printf( " Failed to memcpy d_x\n" );
+  }
+  #endif
+
 #ifndef HPCG_NO_OPENMP
 #pragma omp parallel for
 #endif
   for (local_int_t i=0; i<nc; ++i) rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]];
+
+  #ifdef HPCG_WITH_CUDA
+  // Copy the whole restricted vector from Host to Device
+  scalar_type * d_rcv = A.mgData->rc->d_values;
+  if (cudaSuccess != cudaMemcpy(d_rcv, rcv, nc*sizeof(scalar_type), cudaMemcpyHostToDevice)) {
+    printf( " Failed to memcpy d_x\n" );
+  }
+  #endif
 
   return 0;
 }

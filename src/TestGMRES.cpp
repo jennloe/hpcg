@@ -127,7 +127,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
     }
   }
 
-#if 0
+#if 1
   //for (int k=0; k<2; ++k)
   for (int k=1; k<2; ++k)
   { // This loop tests both unpreconditioned and preconditioned runs

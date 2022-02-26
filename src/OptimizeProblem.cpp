@@ -97,6 +97,164 @@ int OptimizeProblem(SparseMatrix_type & A, CGData_type & data, Vector_type & b, 
     colors[i] = counters[colors[i]]++;
 #endif
 
+#ifdef HPCG_WITH_CUDA
+  {
+    typedef typename SparseMatrix_type::scalar_type SC;
+
+    SparseMatrix_type * curLevelMatrix = &A;
+    do {
+      // form CSR on host
+      const local_int_t nrow = curLevelMatrix->localNumberOfRows;
+      const local_int_t ncol = curLevelMatrix->localNumberOfColumns;
+      global_int_t nnz = curLevelMatrix->localNumberOfNonzeros;
+      int *h_row_ptr = (int*)malloc((nrow+1)* sizeof(int));
+      int *h_col_ind = (int*)malloc( nnz    * sizeof(int));
+      SC  *h_nzvals  = (SC *)malloc( nnz    * sizeof(SC));
+
+      nnz = 0;
+      h_row_ptr[0] = 0;
+      for (local_int_t i=0; i<nrow; i++)  {
+        const SC * const cur_vals = curLevelMatrix->matrixValues[i];
+        const local_int_t * const cur_inds = curLevelMatrix->mtxIndL[i];
+
+        const int cur_nnz = curLevelMatrix->nonzerosInRow[i];
+        for (int j=0; j<cur_nnz; j++) {
+          h_nzvals[nnz+j] = cur_vals[j];
+          h_col_ind[nnz+j] = cur_inds[j];
+        }
+        // sort
+#if 0
+        bool swapped = true;
+        do {
+          swapped = false;
+          for (int j=1; j<cur_nnz; j++) {
+            if (h_col_ind[nnz+j-1] > h_col_ind[nnz+j]) {
+              int ind = h_col_ind[nnz+j-1];
+              SC  val = h_nzvals[nnz+j-1];
+
+              h_col_ind[nnz+j-1] = h_col_ind[nnz+j];
+              h_nzvals[nnz+j-1] = h_nzvals[nnz+j];
+
+              h_col_ind[nnz+j] = ind;
+              h_nzvals[nnz+j] = val;
+            }
+          }
+        } while (swapped);
+#endif
+        nnz += cur_nnz;
+        h_row_ptr[i+1] = nnz;;
+      }
+
+      // copy CSR(A) to device
+      if (cudaSuccess != cudaMalloc ((void**)&(curLevelMatrix->d_row_ptr), (nrow+1)*sizeof(int))) {
+        printf( " Failed to allocate A.d_row_ptr\n" );
+      }
+      if (cudaSuccess != cudaMalloc ((void**)&(curLevelMatrix->d_col_idx), nnz*sizeof(int))) {
+        printf( " Failed to allocate A.d_col_idx\n" );
+      }
+      if (cudaSuccess != cudaMalloc ((void**)&(curLevelMatrix->d_nzvals),  nnz*sizeof(SC))) {
+        printf( " Failed to allocate A.d_row_ptr\n" );
+      }
+
+      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_row_ptr, h_row_ptr, (nrow+1)*sizeof(int), cudaMemcpyHostToDevice)) {
+        printf( " Failed to memcpy A.d_row_ptr\n" );
+      }
+      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_col_idx, h_col_ind, nnz*sizeof(int), cudaMemcpyHostToDevice)) {
+        printf( " Failed to memcpy A.d_col_idx\n" );
+      }
+      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_nzvals,  h_nzvals,  nnz*sizeof(SC),  cudaMemcpyHostToDevice)) {
+        printf( " Failed to memcpy A.d_row_ptr\n" );
+      }
+
+      // Extract lower-triangular matrix
+      nnz = 0;
+      h_row_ptr[0] = 0;
+      for (local_int_t i=0; i<nrow; i++)  {
+        const SC * const cur_vals = curLevelMatrix->matrixValues[i];
+        const local_int_t * const cur_inds = curLevelMatrix->mtxIndL[i];
+
+        const int cur_nnz = curLevelMatrix->nonzerosInRow[i];
+        for (int j=0; j<cur_nnz; j++) {
+	  if (cur_inds[j] <= i) {
+            h_nzvals[nnz] = cur_vals[j];
+            h_col_ind[nnz] = cur_inds[j];
+	    nnz ++;
+          }
+        }
+        h_row_ptr[i+1] = nnz;;
+      }
+
+      // copy CSR(L) to device
+      if (cudaSuccess != cudaMalloc ((void**)&(curLevelMatrix->d_Lrow_ptr), (nrow+1)*sizeof(int))) {
+        printf( " Failed to allocate A.d_row_ptr\n" );
+      }
+      if (cudaSuccess != cudaMalloc ((void**)&(curLevelMatrix->d_Lcol_idx), nnz*sizeof(int))) {
+        printf( " Failed to allocate A.d_col_idx\n" );
+      }
+      if (cudaSuccess != cudaMalloc ((void**)&(curLevelMatrix->d_Lnzvals),  nnz*sizeof(SC))) {
+        printf( " Failed to allocate A.d_row_ptr\n" );
+      }
+
+      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_Lrow_ptr, h_row_ptr, (nrow+1)*sizeof(int), cudaMemcpyHostToDevice)) {
+        printf( " Failed to memcpy A.d_row_ptr\n" );
+      }
+      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_Lcol_idx, h_col_ind, nnz*sizeof(int), cudaMemcpyHostToDevice)) {
+        printf( " Failed to memcpy A.d_col_idx\n" );
+      }
+      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_Lnzvals,  h_nzvals,  nnz*sizeof(SC),  cudaMemcpyHostToDevice)) {
+        printf( " Failed to memcpy A.d_row_ptr\n" );
+      }
+
+      // create Handle (for each matrix)
+      cusparseCreate(&(curLevelMatrix->cusparseHandle));
+      cusparseCreateMatDescr(&(curLevelMatrix->descrA));
+      cusparseSetMatType(curLevelMatrix->descrA, CUSPARSE_MATRIX_TYPE_GENERAL);
+      cusparseSetMatIndexBase(curLevelMatrix->descrA, CUSPARSE_INDEX_BASE_ZERO);
+
+      // run analysis for triangular solve
+      cusparseCreateMatDescr(&(curLevelMatrix->descrL));
+      cusparseCreateSolveAnalysisInfo(&(curLevelMatrix->infoL));
+      cusparseSetMatType(curLevelMatrix->descrL, CUSPARSE_MATRIX_TYPE_TRIANGULAR);
+      cusparseSetMatIndexBase(curLevelMatrix->descrL, CUSPARSE_INDEX_BASE_ZERO);
+      if (std::is_same<SC, double>::value) {
+        cusparseDcsrsv_analysis(curLevelMatrix->cusparseHandle,
+                                CUSPARSE_OPERATION_NON_TRANSPOSE, nrow, nnz,
+                                curLevelMatrix->descrL,
+                                (double *)curLevelMatrix->d_Lnzvals, curLevelMatrix->d_Lrow_ptr, curLevelMatrix->d_Lcol_idx,
+                                curLevelMatrix->infoL);
+      } else if (std::is_same<SC, float>::value) {
+        cusparseScsrsv_analysis(curLevelMatrix->cusparseHandle,
+                                CUSPARSE_OPERATION_NON_TRANSPOSE, nrow, nnz,
+                                curLevelMatrix->descrL,
+                                (float *)curLevelMatrix->d_Lnzvals, curLevelMatrix->d_Lrow_ptr, curLevelMatrix->d_Lcol_idx,
+                                curLevelMatrix->infoL);
+      }
+
+      // for debuging, TODO: remove these
+      //printf( " %d: A.dy = malloc(%d), A.dx = malloc(%d)\n",curLevelMatrix->geom->rank,nrow,ncol ); fflush(stdout);
+      InitializeVector(curLevelMatrix->x, nrow);
+      InitializeVector(curLevelMatrix->y, ncol);
+ 
+      // free matrix on host
+      free(h_row_ptr);
+      free(h_col_ind);
+      free(h_nzvals);
+
+      // next matrix
+      curLevelMatrix = curLevelMatrix->Ac;
+    } while (curLevelMatrix != 0);
+  }
+  {
+    typedef typename Vector_type::scalar_type vector_SC;
+    if (cudaSuccess != cudaMemcpy(b.d_values,  b.values, (b.localLength)*sizeof(vector_SC),  cudaMemcpyHostToDevice)) {
+      printf( " Failed to memcpy b\n" );
+    }
+    if (cudaSuccess != cudaMemcpy(x.d_values,  x.values, (x.localLength)*sizeof(vector_SC),  cudaMemcpyHostToDevice)) {
+      printf( " Failed to memcpy x\n" );
+    }
+  }
+#endif
+
   return 0;
 }
 
@@ -128,3 +286,9 @@ int OptimizeProblem< SparseMatrix<float>, CGData<float>, Vector<float> >
 template
 double OptimizeProblemMemoryUse< SparseMatrix<float> >
   (SparseMatrix<float> const&);
+
+// mixed-precision
+template
+int OptimizeProblem< SparseMatrix<float>, CGData<double>, Vector<double> >
+  (SparseMatrix<float>&, CGData<double>&, Vector<double>&, Vector<double>&, Vector<double>&);
+

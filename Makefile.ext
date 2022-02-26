@@ -53,6 +53,7 @@ HPCG_DEPS = src/CG.o \
 	    src/ComputeGS_Forward_ref.o \
 	    src/ComputeTRSM.o \
 	    src/ComputeGEMV.o \
+	    src/ComputeGEMVT.o \
             src/SetupProblem.o \
 	    src/GenerateNonsymProblem.o \
 	    src/GenerateNonsymProblem_ref.o \
@@ -60,8 +61,10 @@ HPCG_DEPS = src/CG.o \
 	    src/GenerateNonsymCoarseProblem.o \
 
 # These header files are included in many source files, so we recompile every file if one or more of these header is modified.
-PRIMARY_HEADERS = HPCG_SRC_PATH/src/Geometry.hpp HPCG_SRC_PATH/src/SparseMatrix.hpp HPCG_SRC_PATH/src/Vector.hpp HPCG_SRC_PATH/src/CGData.hpp \
-                  HPCG_SRC_PATH/src/MGData.hpp HPCG_SRC_PATH/src/hpcg.hpp
+PRIMARY_HEADERS = HPCG_SRC_PATH/src/Geometry.hpp HPCG_SRC_PATH/src/SparseMatrix.hpp \
+		  HPCG_SRC_PATH/src/MultiVector.hpp HPCG_SRC_PATH/src/Vector.hpp \
+		  HPCG_SRC_PATH/src/CGData.hpp HPCG_SRC_PATH/src/MGData.hpp \
+		  HPCG_SRC_PATH/src/hpcg.hpp
 
 all: bin/xhpcg bin/xhpgmp
 
@@ -219,6 +222,9 @@ src/ComputeTRSM.o: HPCG_SRC_PATH/src/ComputeTRSM.cpp HPCG_SRC_PATH/src/ComputeTR
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/ComputeGEMV.o: HPCG_SRC_PATH/src/ComputeGEMV.cpp HPCG_SRC_PATH/src/ComputeGEMV.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/ComputeGEMVT.o: HPCG_SRC_PATH/src/ComputeGEMVT.cpp HPCG_SRC_PATH/src/ComputeGEMVT.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/SetupProblem.o: HPCG_SRC_PATH/src/SetupProblem.cpp HPCG_SRC_PATH/src/SetupProblem.hpp $(PRIMARY_HEADERS)

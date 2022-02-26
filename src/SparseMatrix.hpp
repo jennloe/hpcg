@@ -36,6 +36,11 @@ typedef std::map< global_int_t, local_int_t > GlobalToLocalMap;
 using GlobalToLocalMap = std::unordered_map< global_int_t, local_int_t >;
 #endif
 
+#ifdef HPCG_WITH_CUDA
+#include <cuda_runtime.h>
+#include <cusparse.h>
+#endif
+
 template <class SC = double>
 class SparseMatrix {
 public:
@@ -75,6 +80,26 @@ public:
   local_int_t * receiveLength; //!< lenghts of messages received from neighboring processes
   local_int_t * sendLength; //!< lenghts of messages sent to neighboring processes
   SC * sendBuffer; //!< send buffer for non-blocking sends
+#endif
+#ifdef HPCG_WITH_CUDA
+  cusparseHandle_t cusparseHandle;
+  cusparseMatDescr_t descrA;
+
+  // to store the local matrix on device
+  int *d_row_ptr;
+  int *d_col_idx;
+  SC  *d_nzvals;   //!< values of matrix entries
+
+  // to store the lower-triangular matrix on device
+  cusparseMatDescr_t descrL;
+  cusparseSolveAnalysisInfo_t infoL;
+  int *d_Lrow_ptr;
+  int *d_Lcol_idx;
+  SC  *d_Lnzvals;   //!< values of matrix entries
+
+  // TODO: remove
+  Vector<SC> x; // nrow
+  Vector<SC> y; // ncol
 #endif
 };
 
@@ -187,6 +212,24 @@ inline void DeleteMatrix(SparseMatrix_type & A) {
   if (A.geom!=0) { DeleteGeometry(*A.geom); delete A.geom; A.geom = 0;}
   if (A.Ac!=0) { DeleteMatrix(*A.Ac); delete A.Ac; A.Ac = 0;} // Delete coarse matrix
   if (A.mgData!=0) { DeleteMGData(*A.mgData); delete A.mgData; A.mgData = 0;} // Delete MG data
+
+#ifdef HPCG_WITH_CUDA
+  cudaFree (A.d_row_ptr);
+  cudaFree (A.d_col_idx);
+  cudaFree (A.d_nzvals);
+
+  cudaFree (A.d_Lrow_ptr);
+  cudaFree (A.d_Lcol_idx);
+  cudaFree (A.d_Lnzvals);
+
+  DeleteVector (A.x);
+  DeleteVector (A.y);
+
+  cusparseDestroy(A.cusparseHandle);
+  cusparseDestroyMatDescr(A.descrA);
+  cusparseDestroyMatDescr(A.descrL);
+  cusparseDestroySolveAnalysisInfo(A.infoL);
+#endif
   return;
 }
 

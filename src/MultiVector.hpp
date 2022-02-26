@@ -32,6 +32,10 @@ public:
   local_int_t n;            //!< number of vectors
   local_int_t localLength;  //!< length of local portion of the vector
   SC * values;              //!< array of values
+#ifdef HPCG_WITH_CUDA
+  SC * d_values;   //!< array of values
+  cublasHandle_t handle;
+#endif
   /*!
    This is for storing optimized data structures created in OptimizeProblem and
    used inside optimized ComputeSPMV().
@@ -54,6 +58,14 @@ inline void InitializeMultiVector(MultiVector_type & V, local_int_t localLength,
   V.localLength = localLength;
   V.n = n;
   V.values = new scalar_type[localLength * n];
+#ifdef HPCG_WITH_CUDA
+  if (CUBLAS_STATUS_SUCCESS != cublasCreate(&V.handle)) {
+    printf( " InitializeVector :: Failed to create Handle\n" );
+  }
+  if (cudaSuccess != cudaMalloc ((void**)&V.d_values, (localLength*n)*sizeof(scalar_type))) {
+    printf( " InitializeVector :: Failed to allocate d_values\n" );
+  }
+#endif
   V.optimizationData = 0;
   return;
 }
@@ -79,10 +91,29 @@ inline void ZeroMultiVector(MultiVector_type & V) {
 /*!
   @param[inout] v - On entrance v is initialized, on exit all its values are zero.
  */
+template<class MultiVector_type>
+inline void GetMultiVector(MultiVector_type & V, local_int_t j1, local_int_t j2, MultiVector_type & Vj) {
+  Vj.n = j2-j1+1;
+  Vj.localLength = V.localLength;
+  Vj.values = &V.values[V.localLength*j1];
+#ifdef HPCG_WITH_CUDA
+  Vj.d_values = &V.d_values[V.localLength*j1];
+  Vj.handle = V.handle;
+#endif
+  return;
+}
+
+/*!
+  @param[inout] v - On entrance v is initialized, on exit all its values are zero.
+ */
 template<class MultiVector_type, class Vector_type>
 inline void GetVector(MultiVector_type & V, local_int_t j, Vector_type & vj) {
   vj.localLength = V.localLength;
   vj.values = &V.values[V.localLength*j];
+#ifdef HPCG_WITH_CUDA
+  vj.d_values = &V.d_values[V.localLength*j];
+  vj.handle = V.handle;
+#endif
   return;
 }
 
@@ -96,6 +127,10 @@ inline void DeleteMultiVector(MultiVector_type & V) {
 
   delete [] V.values;
   V.localLength = 0;
+#ifdef HPCG_WITH_CUDA
+  cudaFree (V.d_values);
+  cublasDestroy(V.handle);
+#endif
   V.n = 0;
   return;
 }

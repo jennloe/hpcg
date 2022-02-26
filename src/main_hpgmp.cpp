@@ -163,6 +163,16 @@ int main(int argc, char * argv[]) {
   setup_time = mytimer() - setup_time; // Capture total time of setup
   times[9] = setup_time; // Save it for reporting
 
+  // Call user-tunable set up function.
+  double t7 = mytimer();
+  OptimizeProblem(A, data, b, x, xexact);
+  t7 = mytimer() - t7;
+  times[7] = t7;
+
+  if (A.geom->rank==0) {
+    HPCG_fout << " Setup    Time     " << setup_time << " seconds." << endl;
+    HPCG_fout << " Optimize Time     " << t7 << " seconds." << endl;
+  }
 
   ////////////////////////////////////
   // Reference SpMV+MG Timing Phase //
@@ -208,17 +218,30 @@ int main(int argc, char * argv[]) {
 
 #ifdef HPCG_DEBUG
   t1 = mytimer();
+  if (rank==0) HPCG_fout << endl << "Running Uniform-precision Test" << endl;
 #endif
   TestGMRES(A, data, b, x, testcg_data);
 #ifdef HPCG_DEBUG
   if (rank==0) HPCG_fout << "Total validation (uniform-precision TestGMRES) execution time in main (sec) = " << mytimer() - t1 << endl;
 #endif
 
+  setup_time = mytimer();
   init_vect = false;
   SparseMatrix_type2 A2;
   CGData_type2 data2;
   SetupProblem(numberOfMgLevels, A2, geom, data2, &b, &x, &xexact, init_vect);
+  setup_time = mytimer() - setup_time; // Capture total time of setup
+
+  t7 = mytimer();
+  OptimizeProblem(A2, data, b, x, xexact);
+  t7 = mytimer() - t7;
+
   testcg_data.count_pass = testcg_data.count_fail = 0;
+  if (A.geom->rank==0) {
+    HPCG_fout << " Setup    Time     " << setup_time << " seconds." << endl;
+    HPCG_fout << " Optimize Time     " << t7 << " seconds." << endl;
+  }
+
 
 #ifdef HPCG_DEBUG
   t1 = mytimer();

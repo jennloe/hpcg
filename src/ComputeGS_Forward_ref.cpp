@@ -19,7 +19,16 @@
  */
 
 #ifndef HPCG_NO_MPI
-#include "ExchangeHalo.hpp"
+ #include "ExchangeHalo.hpp"
+#endif
+#ifdef HPCG_WITH_CUDA
+ #include "ComputeSPMV.hpp"
+ #include "ComputeWAXPBY.hpp"
+ #ifdef HPCG_DEBUG
+ #include <mpi.h>
+ #include "Utils.hpp"
+ #include "hpcg.hpp"
+ #endif
 #endif
 #include "ComputeGS_Forward_ref.hpp"
 #include <cassert>
@@ -53,11 +62,36 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
   typedef typename SparseMatrix_type::scalar_type scalar_type;
+  const local_int_t nrow = A.localNumberOfRows;
+  const local_int_t ncol = A.localNumberOfColumns;
+
 #ifndef HPCG_NO_MPI
-  ExchangeHalo(A,x);
+  #ifdef HPCG_WITH_CUDA
+  // Copy local part of X to HOST CPU
+  if (A.geom->rank==0) printf( " HaloExchange on Host for GS_Forward\n" );
+  if (cudaSuccess != cudaMemcpy(x.values, x.d_values, nrow*sizeof(scalar_type), cudaMemcpyDeviceToHost)) {
+    printf( " Failed to memcpy d_y\n" );
+  }
+  #endif
+
+  // Exchange Halo on HOST CPU
+  ExchangeHalo(A, x);
+
+  #ifdef HPCG_WITH_CUDA
+  // Copy orinal x (after Halo Exchange) in x0 on device
+  Vector_type x0 = A.y; // ncol
+  scalar_type * const x0v = x0.values;
+  CopyVector(x, x0); // this also copy on CPU, which is needed only for debug
+
+  #ifdef HPCG_DEBUG
+  if (A.geom->rank==0) {
+    HPCG_fout << A.geom->rank << " : ComputeGS(" << nrow << " x " << ncol << ") start" << std::endl;
+  }
+  #endif
+  #endif
 #endif
 
-  const local_int_t nrow = A.localNumberOfRows;
+#if !defined(HPCG_WITH_CUDA) | defined(HPCG_DEBUG)
   scalar_type ** matrixDiagonal = A.matrixDiagonal;  // An array of pointers to the diagonal entries A.matrixValues
   const scalar_type * const rv = r.values;
   scalar_type * const xv = x.values;
@@ -76,8 +110,89 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
     sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
 
     xv[i] = sum/currentDiagonal;
-
   }
+#endif
+
+#ifdef HPCG_WITH_CUDA
+  const scalar_type one  (1.0);
+
+  // workspace
+  Vector_type b = A.x; // nrow
+
+  // b = b - Ax
+  ComputeSPMV(A, x0, b);
+  ComputeWAXPBY(nrow, -one, b, one, r, b, A.isWaxpbyOptimized);
+
+  // x = L^{-1}b
+  scalar_type* d_bv = b.d_values;
+  scalar_type* d_xv = x.d_values;
+  if (std::is_same<scalar_type, double>::value) {
+     if (CUSPARSE_STATUS_SUCCESS != cusparseDcsrsv_solve(A.cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+                                                         nrow,
+                                                         (const double*)&one, A.descrL,
+                                                                              (double*)A.d_Lnzvals, A.d_Lrow_ptr, A.d_Lcol_idx,
+                                                                              A.infoL,
+                                                         (double*)d_bv, (double*)d_xv)) {
+       printf( " Failed cusparseDcsrv_solve\n" );
+     }
+  } else if (std::is_same<scalar_type, float>::value) {
+     if (CUSPARSE_STATUS_SUCCESS != cusparseScsrsv_solve(A.cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+                                                         nrow,
+                                                         (const float*)&one, A.descrL,
+                                                                             (float*)A.d_Lnzvals, A.d_Lrow_ptr, A.d_Lcol_idx,
+                                                                             A.infoL,
+                                                         (float*)d_bv, (float*)d_xv)) {
+       printf( " Failed cusparseScsrv_solve\n" );
+     }
+  }
+
+  #ifdef HPCG_DEBUG
+  scalar_type * tv = (scalar_type *)malloc(nrow * sizeof(scalar_type));
+  for (int i=0; i<nrow; i++) tv[i] = xv[i];
+  // copy x to host for check inside WAXPBY (debug)
+  if (cudaSuccess != cudaMemcpy(xv, d_xv, nrow*sizeof(scalar_type), cudaMemcpyDeviceToHost)) {
+    printf( " Failed to memcpy d_b\n" );
+  }
+  #endif
+
+  // x = x + x0
+  ComputeWAXPBY(nrow, one, x, one, x0, x, A.isWaxpbyOptimized);
+
+  #ifdef HPCG_DEBUG
+  scalar_type l_enorm = 0.0;
+  scalar_type l_xnorm = 0.0;
+  scalar_type l_rnorm = 0.0;
+  for (int j=0; j<nrow; j++) {
+    l_xnorm += tv[j]*tv[j];
+  }
+  for (int j=0; j<nrow; j++) {
+    l_enorm += (xv[j]-tv[j])*(xv[j]-tv[j]);
+    l_rnorm += rv[j]*rv[j];
+  }
+  scalar_type enorm = 0.0;
+  scalar_type xnorm = 0.0;
+  scalar_type rnorm = 0.0;
+  #ifndef HPCG_NO_MPI
+  MPI_Datatype MPI_SCALAR_TYPE = MpiTypeTraits<scalar_type>::getType ();
+  MPI_Allreduce(&l_enorm, &enorm, 1, MPI_SCALAR_TYPE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&l_xnorm, &xnorm, 1, MPI_SCALAR_TYPE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&l_rnorm, &rnorm, 1, MPI_SCALAR_TYPE, MPI_SUM, MPI_COMM_WORLD);
+  #else
+  enorm = l_enorm;
+  xnorm = l_xnorm;
+  rnorm = l_rnorm;
+  #endif
+  enorm = sqrt(enorm);
+  xnorm = sqrt(xnorm);
+  rnorm = sqrt(rnorm);
+  int rank = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank == 0) {
+    HPCG_fout << rank << " : GS_forward(" << nrow << " x " << ncol << "): error = " << enorm << " (x=" << xnorm << ", r=" << rnorm << ")" << std::endl;
+  }
+  free(tv);
+  #endif
+#endif
 
   return 0;
 }

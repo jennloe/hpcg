@@ -24,6 +24,13 @@
 #include <fstream>
 #include <cassert>
 #include <cstdlib>
+
+#ifdef HPCG_WITH_CUDA
+ #include <cuda_runtime.h>
+ #include <cublas_v2.h>
+ #include "hpcg.hpp"
+#endif
+
 #include "Geometry.hpp"
 
 template<class SC = double>
@@ -32,6 +39,10 @@ public:
   typedef SC scalar_type;
   local_int_t localLength;  //!< length of local portion of the vector
   SC * values;     //!< array of values
+#ifdef HPCG_WITH_CUDA
+  SC * d_values;   //!< array of values
+  cublasHandle_t handle;
+#endif
   /*!
    This is for storing optimized data structures created in OptimizeProblem and
    used inside optimized ComputeSPMV().
@@ -50,6 +61,14 @@ inline void InitializeVector(Vector_type & v, local_int_t localLength) {
   typedef typename Vector_type::scalar_type scalar_type;
   v.localLength = localLength;
   v.values = new scalar_type[localLength];
+#ifdef HPCG_WITH_CUDA
+  if (CUBLAS_STATUS_SUCCESS != cublasCreate(&v.handle)) {
+    printf( " InitializeVector :: Failed to create Handle\n" );
+  }
+  if (cudaSuccess != cudaMalloc ((void**)&v.d_values, localLength*sizeof(scalar_type))) {
+    printf( " InitializeVector :: Failed to allocate d_values\n" );
+  }
+#endif
   v.optimizationData = 0;
   return;
 }
@@ -61,10 +80,11 @@ inline void InitializeVector(Vector_type & v, local_int_t localLength) {
  */
 template<class Vector_type>
 inline void ZeroVector(Vector_type & v) {
-  typedef typename Vector_type::scalar_type scalar_type;
-  local_int_t localLength = v.localLength;
-  scalar_type * vv = v.values;
-  for (int i=0; i<localLength; ++i) vv[i] = 0.0;
+  //typedef typename Vector_type::scalar_type scalar_type;
+  //local_int_t localLength = v.localLength;
+  //scalar_type * vv = v.values;
+  //for (int i=0; i<localLength; ++i) vv[i] = 0.0;
+  ScaleVectorValue(v, 0.0);
   return;
 }
 /*!
@@ -80,6 +100,36 @@ inline void ScaleVectorValue(Vector_type & v, local_int_t index, typename Vector
   assert(index>=0 && index < v.localLength);
   scalar_type * vv = v.values;
   vv[index] *= value;
+  return;
+}
+/*!
+  Multiply (scale) the vector by a given value.
+
+  @param[inout] v Vector to be modified
+  @param[in] value Value to scale by
+ */
+template<class Vector_type>
+inline void ScaleVectorValue(Vector_type & v, typename Vector_type::scalar_type value) {
+  typedef typename Vector_type::scalar_type scalar_type;
+  local_int_t localLength = v.localLength;
+  scalar_type * vv = v.values;
+  if (value == 0.0) {
+    for (int i=0; i<localLength; ++i) vv[i] = 0.0;
+  } else {
+    for (int i=0; i<localLength; ++i) vv[i] *= value;
+  }
+#ifdef HPCG_WITH_CUDA
+  scalar_type * d_vv = v.d_values;
+  if (std::is_same<scalar_type, double>::value) {
+    if (CUBLAS_STATUS_SUCCESS != cublasDscal (v.handle, localLength, (const double*)&value, (double*)d_vv, 1)) {
+      printf( " Failed cublasDscal\n" );
+    }
+  } else if (std::is_same<scalar_type, float>::value) {
+    if (CUBLAS_STATUS_SUCCESS != cublasSscal (v.handle, localLength, (const float*)&value, (float*)d_vv, 1)) {
+      printf( " Failed cublasSscal\n" );
+    }
+  }
+#endif
   return;
 }
 /*!
@@ -109,7 +159,35 @@ inline void CopyVector(const Vector_src & v, Vector_dst & w) {
   assert(w.localLength >= localLength);
   scalar_src * vv = v.values;
   scalar_dst * wv = w.values;
+#if !defined(HPCG_WITH_CUDA) | defined(HPCG_DEBUG)
   for (int i=0; i<localLength; ++i) wv[i] = vv[i];
+#endif
+
+#ifdef HPCG_WITH_CUDA
+  if (std::is_same<scalar_src, scalar_dst>::value) {
+    #ifdef HPCG_DEBUG
+    HPCG_fout << " CopyVector ( Unit-precision )" << std::endl;
+    #endif
+    if (cudaSuccess != cudaMemcpy(w.d_values, v.d_values, localLength*sizeof(scalar_src), cudaMemcpyDeviceToDevice)) {
+      printf( " CopyVector :: Failed to memcpy d_x\n" );
+    }
+  } else {
+    HPCG_fout << " CopyVector :: Mixed-precision not supported" << std::endl;
+
+    // Copy input vector to Host
+    if (cudaSuccess != cudaMemcpy(vv, v.d_values, localLength*sizeof(scalar_src), cudaMemcpyDeviceToHost)) {
+      printf( " CopyVector :: Failed to memcpy d_v\n" );
+    }
+
+    // Copy on Host
+    for (int i=0; i<localLength; ++i) wv[i] = vv[i];
+
+    // Copy output vector to Device
+    if (cudaSuccess != cudaMemcpy(w.d_values, wv, localLength*sizeof(scalar_dst), cudaMemcpyHostToDevice)) {
+      printf( " CopyVector :: Failed to memcpy d_w\n" );
+    }
+  }
+#endif
   return;
 }
 
@@ -123,6 +201,10 @@ template<class Vector_type>
 inline void DeleteVector(Vector_type & v) {
 
   delete [] v.values;
+#ifdef HPCG_WITH_CUDA
+  cudaFree (v.d_values);
+  cublasDestroy(v.handle);
+#endif
   v.localLength = 0;
   return;
 }

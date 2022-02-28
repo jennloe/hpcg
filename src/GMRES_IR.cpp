@@ -140,7 +140,8 @@ int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
     // > Copy r and scale to the initial basis vector
     GetVector(Q, 0, Qj);
     CopyVector(r_hi, Qj);
-    TICK(); ComputeWAXPBY(nrow, zero, Qj, one_hi/normr_hi, Qj, Qj, A.isWaxpbyOptimized); TOCK(t2);
+    //TICK(); ComputeWAXPBY(nrow, zero, Qj, one_hi/normr_hi, Qj, Qj, A.isWaxpbyOptimized); TOCK(t2);
+    TICK(); ScaleVectorValue(Qj, one_hi/normr_hi); TOCK(t2);
 
     // Record initial residual for convergence testing
     if (niters == 0) normr0 = normr_hi;
@@ -198,7 +199,8 @@ int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
       beta = sqrt(beta);
 
       // Qk = Qk / beta
-      TICK(); ComputeWAXPBY(nrow, zero, Qk, one/beta, Qk, Qk, A.isWaxpbyOptimized); TOCK(t2);
+      //TICK(); ComputeWAXPBY(nrow, zero, Qk, one/beta, Qk, Qk, A.isWaxpbyOptimized); TOCK(t2);
+      TICK(); ScaleVectorValue(Qk, one/beta); TOCK(t2);
       SetMatrixValue(H, k, k-1, beta);
 
       // Given's rotation
@@ -248,35 +250,14 @@ int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
         HPCG_fout << "GMRES_IR restart: k = "<< k << " (" << niters << ")" << std::endl;
     #endif
     // > update x
-#if 0
-printf( "\n k = %d\n",k );
-printf( "t=[\n" );
-for (int i = 0; i < k; i++) printf( "%e\n",t.values[i]);
-printf("];\n\n");
-
-printf( "R=[\n" );
-for (int i = 0; i < k; i++) {
-  for (int j = 0; j < k; j++) printf("%e ",H.values[i + j * H.m] );
-  printf("\n");
-}
-printf("];\n\n");
-
-if (niters == 1) {
- printf( " nrow = %d, max_iter = %d\n",nrow,max_iter );
- printf( " Q = [\n" );
- for (int i = 0; i < nrow; i++) {
-   for (int j = 0; j <= k-1; j++) printf( "%e ",Q.values[i + j * nrow] );
-   printf("\n");
- }
- printf( " ];\n\n" );
-}
-#endif
     ComputeTRSM(k-1, one, H, t);
     if (doPreconditioning) {
       ComputeGEMV (nrow, k-1, one, Q, t, zero, r); // r = Q*t
       ComputeMG(A_lo, r, z, symmetric);            // z = M*r
+      // mixed-precision
       TICK(); ComputeWAXPBY(nrow, one_hi, x_hi, one, z, x_hi, A.isWaxpbyOptimized); TOCK(t2); // x += z
     } else {
+      // mixed-precision
       ComputeGEMV (nrow, k-1, one_hi, Q, t, one_hi, x_hi); // x += Q*t
     }
   } // end of outer-loop

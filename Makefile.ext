@@ -45,6 +45,7 @@ HPCG_DEPS = src/ComputeResidual.o \
 	    src/ComputeGS_Forward_ref.o \
 	    src/ComputeTRSM.o \
 	    src/ComputeGEMV.o \
+	    src/ComputeGEMVT.o \
 			src/SetupProblem.o \
 	    src/GenerateNonsymProblem.o \
 	    src/GenerateNonsymProblem_v1_ref.o \
@@ -183,6 +184,9 @@ src/ComputeTRSM.o: HPCG_SRC_PATH/src/ComputeTRSM.cpp HPCG_SRC_PATH/src/ComputeTR
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/ComputeGEMV.o: HPCG_SRC_PATH/src/ComputeGEMV.cpp HPCG_SRC_PATH/src/ComputeGEMV.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
+
+src/ComputeGEMVT.o: HPCG_SRC_PATH/src/ComputeGEMVT.cpp HPCG_SRC_PATH/src/ComputeGEMVT.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/SetupProblem.o: HPCG_SRC_PATH/src/SetupProblem.cpp HPCG_SRC_PATH/src/SetupProblem.hpp $(PRIMARY_HEADERS)

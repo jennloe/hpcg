@@ -161,6 +161,16 @@ int main(int argc, char * argv[]) {
   //TODO: This is the spot where HPCG runs check problem.  Do we need CheckProblem?
   //Probably need to check multigird (and Traingular solve?) here. 
 
+  // Call user-tunable set up function.
+  double t7 = mytimer();
+  OptimizeProblem(A, data, b, x, xexact);
+  t7 = mytimer() - t7;
+  times[7] = t7;
+
+  if (A.geom->rank==0) {
+    HPCG_fout << " Setup    Time     " << setup_time << " seconds." << endl;
+    HPCG_fout << " Optimize Time     " << t7 << " seconds." << endl;
+  }
 
   ////////////////////////////////////
   // Reference SpMV+MG Timing Phase //
@@ -248,6 +258,7 @@ int main(int argc, char * argv[]) {
 /*
 #ifdef HPCG_DEBUG
   t1 = mytimer();
+  if (rank==0) HPCG_fout << endl << "Running Uniform-precision Test" << endl;
 #endif
   testcg_data.count_pass = testcg_data.count_fail = 0;
   TestGMRES(A, data, b, x, testcg_data);
@@ -272,7 +283,18 @@ int main(int argc, char * argv[]) {
   SparseMatrix_type2 A2;
   CGData_type2 data2;
   SetupProblem(numberOfMgLevels, A2, geom, data2, &b, &x, &xexact, init_vect);
+  setup_time = mytimer() - setup_time; // Capture total time of setup
+
+  t7 = mytimer();
+  OptimizeProblem(A2, data, b, x, xexact);
+  t7 = mytimer() - t7;
+
   testcg_data.count_pass = testcg_data.count_fail = 0;
+  if (A.geom->rank==0) {
+    HPCG_fout << " Setup    Time     " << setup_time << " seconds." << endl;
+    HPCG_fout << " Optimize Time     " << t7 << " seconds." << endl;
+  }
+
 
 #ifdef HPCG_DEBUG
   t1 = mytimer();

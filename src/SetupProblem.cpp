@@ -44,6 +44,8 @@ void SetupProblem(int numberOfMgLevels, SparseMatrix_type & A, Geometry * geom, 
   GenerateProblem(A, b, x, xexact, init_vect);
   #endif
   SetupHalo(A);
+  A.localNumberOfMGNonzeros = A.localNumberOfNonzeros;
+  A.totalNumberOfMGNonzeros = A.totalNumberOfNonzeros;
 
   SparseMatrix_type * curLevelMatrix = &A;
   for (int level = 1; level< numberOfMgLevels; ++level) {
@@ -52,6 +54,8 @@ void SetupProblem(int numberOfMgLevels, SparseMatrix_type & A, Geometry * geom, 
     #else
     GenerateCoarseProblem(*curLevelMatrix);
     #endif
+    A.localNumberOfMGNonzeros += curLevelMatrix->localNumberOfNonzeros;
+    A.totalNumberOfMGNonzeros += curLevelMatrix->totalNumberOfNonzeros;
     curLevelMatrix = curLevelMatrix->Ac; // Make the just-constructed coarse grid the next level
   }
 

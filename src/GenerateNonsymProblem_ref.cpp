@@ -140,7 +140,6 @@ void GenerateNonsymProblem_ref(SparseMatrix_type & A, Vector_type * b, Vector_ty
 #ifndef HPCG_NO_OPENMP
   #pragma omp parallel for
 #endif
-//printf("c=[\n");
   for (local_int_t iz=0; iz<nz; iz++) {
     global_int_t giz = giz0+iz;
     for (local_int_t iy=0; iy<ny; iy++) {
@@ -193,7 +192,6 @@ void GenerateNonsymProblem_ref(SparseMatrix_type & A, Vector_type * b, Vector_ty
                         *currentValuePointer -= (gamma / two);
                       }
                     }
-//printf( "%d %d %.16f\n",currentGlobalRow,curcol,*currentValuePointer);
                     bi += *currentValuePointer ;
                     *currentIndexPointerG++ = curcol;
                     *currentValuePointer++;
@@ -217,7 +215,6 @@ void GenerateNonsymProblem_ref(SparseMatrix_type & A, Vector_type * b, Vector_ty
       } // end ix loop
     } // end iy loop
   } // end iz loop
-//printf("];\n");
 #ifdef HPCG_DETAILED_DEBUG
   HPCG_fout     << "Process " << A.geom->rank << " of " << A.geom->size <<" has " << localNumberOfRows    << " rows."     << endl
       << "Process " << A.geom->rank << " of " << A.geom->size <<" has " << localNumberOfNonzeros<< " nonzeros." <<endl;

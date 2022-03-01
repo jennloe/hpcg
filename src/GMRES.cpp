@@ -63,7 +63,7 @@ template<class SparseMatrix_type, class CGData_type, class Vector_type>
 int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b, Vector_type & x,
           const int restart_length, const int max_iter, const typename SparseMatrix_type::scalar_type tolerance,
           int & niters, typename SparseMatrix_type::scalar_type & normr,  typename SparseMatrix_type::scalar_type & normr0,
-          double * times, bool doPreconditioning) {
+          double * times, double *flops, bool doPreconditioning) {
 
   typedef typename SparseMatrix_type::scalar_type scalar_type;
   typedef MultiVector<scalar_type> MultiVector_type;
@@ -81,6 +81,7 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
 //  double t6 = 0.0;
 //#endif
   local_int_t nrow = A.localNumberOfRows;
+  local_int_t Nrow = A.totalNumberOfRows;
   Vector_type & r = data.r; // Residual vector
   Vector_type & z = data.z; // Preconditioned residual vector
   Vector_type & p = data.p; // Direction vector (in MPI mode ncol>=nrow)
@@ -115,18 +116,19 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
                            << ", nrow = " << nrow << std::endl;
   }
   niters = 0;
+  *flops = 0;
   bool converged = false;
   while (niters <= max_iter && !converged) {
     // p is of length ncols, copy x to p for sparse MV operation
     CopyVector(x, p);
-    TICK(); ComputeSPMV(A, p, Ap); TOCK(t3); // Ap = A*p
-    TICK(); ComputeWAXPBY(nrow, one, b, -one, Ap, r, A.isWaxpbyOptimized);  TOCK(t2); // r = b - Ax (x stored in p)
-    TICK(); ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized); TOCK(t1);
+    TICK(); ComputeSPMV(A, p, Ap); TOCK(t3); *flops += (2*A.totalNumberOfNonzeros); // Ap = A*p
+    TICK(); ComputeWAXPBY(nrow, one, b, -one, Ap, r, A.isWaxpbyOptimized); TOCK(t2); *flops += (2*Nrow); // r = b - Ax (x stored in p)
+    TICK(); ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized); *flops += (2*Nrow); TOCK(t1);
     normr = sqrt(normr);
     GetVector(Q, 0, Qj);
     CopyVector(r, Qj);
     //TICK(); ComputeWAXPBY(nrow, zero, Qj, one/normr, Qj, Qj, A.isWaxpbyOptimized); TOCK(t2);
-    TICK(); ScaleVectorValue(Qj, one/normr); TOCK(t2);
+    TICK(); ScaleVectorValue(Qj, one/normr); TOCK(t2); *flops += (2*Nrow);
 
     // Record initial residual for convergence testing
     if (niters == 0) normr0 = normr;
@@ -150,14 +152,15 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
       GetVector(Q, k,   Qk);
 
       TICK();
-      if (doPreconditioning)
-        ComputeMG(A, Qkm1, z, symmetric); // Apply preconditioner
-      else
+      if (doPreconditioning) {
+        ComputeMG(A, Qkm1, z, symmetric); *flops += (2*A.totalNumberOfMGNonzeros); // Apply preconditioner
+      } else {
         CopyVector(Qkm1, z);              // copy r to z (no preconditioning)
+      }
       TOCK(t5); // Preconditioner apply time
 
       // Qk = A*z
-      TICK(); ComputeSPMV(A, z, Qk); TOCK(t3);
+      TICK(); ComputeSPMV(A, z, Qk); TOCK(t3); *flops += (2*A.totalNumberOfNonzeros);
 
 
       // orthogonalize z against Q(:,0:k-1), using dots
@@ -191,13 +194,14 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
           AddMatrixValue(H, i, k-1, h.values[i]);
 	}
       }
+      *flops += (2*k*Nrow);
       // beta = norm(Qk)
-      TICK(); ComputeDotProduct(nrow, Qk, Qk, beta, t4, A.isDotProductOptimized); TOCK(t1);
+      TICK(); ComputeDotProduct(nrow, Qk, Qk, beta, t4, A.isDotProductOptimized); TOCK(t1); *flops += (2*Nrow);
       beta = sqrt(beta);
 
       // Qk = Qk / beta
       //TICK(); ComputeWAXPBY(nrow, zero, Qk, one/beta, Qk, Qk, A.isWaxpbyOptimized); TOCK(t2);
-      TICK(); ScaleVectorValue(Qk, one/beta); TOCK(t2);
+      TICK(); ScaleVectorValue(Qk, one/beta); TOCK(t2); *flops += Nrow;
       SetMatrixValue(H, k, k-1, beta);
 
       // Given's rotation
@@ -247,11 +251,11 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
     // > update x
     ComputeTRSM(k-1, one, H, t);
     if (doPreconditioning) {
-      ComputeGEMV (nrow, k-1, one, Q, t, zero, r); // r = Q*t
-      ComputeMG(A, r, z, symmetric);               // z = M*r
-      TICK(); ComputeWAXPBY(nrow, one, x, one, z, x, A.isWaxpbyOptimized); TOCK(t2); // x += z
+      ComputeGEMV(nrow, k-1, one, Q, t, zero, r); *flops += (2*Nrow*(k-1));      // r = Q*t
+      ComputeMG(A, r, z, symmetric); *flops += (2*A.totalNumberOfMGNonzeros);    // z = M*r
+      TICK(); ComputeWAXPBY(nrow, one, x, one, z, x, A.isWaxpbyOptimized); TOCK(t2); *flops += (2*Nrow); // x += z
     } else {
-      ComputeGEMV (nrow, k-1, one, Q, t, one, x); // x += Q*t
+      ComputeGEMV (nrow, k-1, one, Q, t, one, x); *flops += (2*Nrow*(k-1)); // x += Q*t
     }
   } // end of outer-loop
 
@@ -277,9 +281,9 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
 template
 int GMRES< SparseMatrix<double>, CGData<double>, Vector<double> >
   (SparseMatrix<double> const&, CGData<double>&, Vector<double> const&, Vector<double>&,
-   const int, const int, double, int&, double&, double&, double*, bool);
+   const int, const int, double, int&, double&, double&, double*, double*, bool);
 
 template
 int GMRES< SparseMatrix<float>, CGData<float>, Vector<float> >
   (SparseMatrix<float> const&, CGData<float>&, Vector<float> const&, Vector<float>&,
-   const int, const int, float, int&, float&, float&, double*, bool);
+   const int, const int, float, int&, float&, float&, double*, double*, bool);

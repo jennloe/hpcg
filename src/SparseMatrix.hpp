@@ -49,9 +49,11 @@ public:
   Geometry * geom; //!< geometry associated with this matrix
   global_int_t totalNumberOfRows; //!< total number of matrix rows across all processes
   global_int_t totalNumberOfNonzeros; //!< total number of matrix nonzeros across all processes
+  global_int_t totalNumberOfMGNonzeros; //!< total number of matrix nonzeros across all processes, for MG
   local_int_t localNumberOfRows; //!< number of rows local to this process
   local_int_t localNumberOfColumns;  //!< number of columns local to this process
   local_int_t localNumberOfNonzeros;  //!< number of nonzeros local to this process
+  local_int_t localNumberOfMGNonzeros;  //!< number of nonzeros local to this process, for MG
   char  * nonzerosInRow;  //!< The number of nonzeros in a row will always be 27 or fewer
   global_int_t ** mtxIndG; //!< matrix indices as global values
   local_int_t ** mtxIndL; //!< matrix indices as local values
@@ -114,9 +116,11 @@ inline void InitializeSparseMatrix(SparseMatrix_type & A, Geometry * geom) {
   A.geom = geom;
   A.totalNumberOfRows = 0;
   A.totalNumberOfNonzeros = 0;
+  A.totalNumberOfMGNonzeros = 0;
   A.localNumberOfRows = 0;
   A.localNumberOfColumns = 0;
   A.localNumberOfNonzeros = 0;
+  A.localNumberOfMGNonzeros = 0;
   A.nonzerosInRow = 0;
   A.mtxIndG = 0;
   A.mtxIndL = 0;

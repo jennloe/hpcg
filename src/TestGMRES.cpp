@@ -59,6 +59,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
   typedef typename SparseMatrix_type::scalar_type scalar_type;
 
   // Use this array for collecting timing information
+  double flops;
   std::vector< double > times(8,0.0);
   // Temporary storage for holding original diagonal and RHS
   Vector_type origDiagA, exaggeratedDiagA, origB;
@@ -109,7 +110,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
       ZeroVector(x); // Zero out x
 
       double time_tic = mytimer();
-      int ierr = GMRES(A, data, b, x, restart_length, maxIters, tolerance, niters, normr, normr0, &times[0], k==1);
+      int ierr = GMRES(A, data, b, x, restart_length, maxIters, tolerance, niters, normr, normr0, &times[0], &flops, k==1);
       double time_solve = mytimer() - time_tic;
       if (ierr) HPCG_fout << "Error in call to GMRES: " << ierr << ".\n" << endl;
       if (niters <= expected_niters) {
@@ -123,6 +124,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
         HPCG_fout << "Call [" << i << "] Number of GMRES Iterations [" << niters <<"] Scaled Residual [" << normr/normr0 << "]" << endl;
         HPCG_fout << " Expected " << expected_niters << " iterations.  Performed " << niters << "." << endl;
         HPCG_fout << " Time     " << time_solve << " seconds." << endl;
+        HPCG_fout << " Gflop/s  " << flops/1000000000.0 << "/" << time_solve << " = " << (flops/1000000000.0)/time_solve  << endl;
       }
     }
   }

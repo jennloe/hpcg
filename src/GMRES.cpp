@@ -22,7 +22,7 @@
 
 #include <cmath>
 
-#include "hpcg.hpp"
+#include "hpgmp.hpp"
 
 #include "GMRES.hpp"
 #include "mytimer.hpp"

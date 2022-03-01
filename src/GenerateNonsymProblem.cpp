@@ -27,7 +27,6 @@
 #endif
 
 #include "GenerateNonsymProblem.hpp"
-#include "GenerateNonsymProblem_ref.hpp"
 #include "GenerateNonsymProblem_v1_ref.hpp"
 
 

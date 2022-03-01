@@ -19,7 +19,6 @@
  */
 
 #include "ComputeMG_ref.hpp"
-#include "ComputeSYMGS_ref.hpp"
 #include "ComputeGS_Forward_ref.hpp"
 #include "ComputeSPMV_ref.hpp"
 #include "ComputeRestriction_ref.hpp"

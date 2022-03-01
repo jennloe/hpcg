@@ -31,7 +31,7 @@
 #include <fstream>
 using std::endl;
 
-#include "hpcg.hpp"
+#include "hpgmp.hpp"
 #endif
 
 /*!
@@ -44,15 +44,14 @@ using std::endl;
   @param[in] niters Number of preconditioned CG iterations performed to lower the residual below a threshold
   @param[in] times  Vector of cumulative timings for each of the phases of a preconditioned CG iteration
   @param[in] testcg_data    the data structure with the results of the CG-correctness test including pass/fail information
-  @param[in] testsymmetry_data the data structure with the results of the CG symmetry test including pass/fail information
   @param[in] testnorms_data the data structure with the results of the CG norm test including pass/fail information
   @param[in] global_failure indicates whether a failure occurred during the correctness tests of CG
 
   @see YAML_Doc
 */
-template<class SparseMatrix_type, class TestCGData_type, class TestSymmetryData_type, class TestNormsData_type>
+template<class SparseMatrix_type, class TestCGData_type, class TestNormsData_type>
 void ReportResults(const SparseMatrix_type & A, int numberOfMgLevels, int numberOfCgSets, int refMaxIters,int optMaxIters, double times[],
-                   const TestCGData_type & testcg_data, const TestSymmetryData_type & testsymmetry_data, const TestNormsData_type & testnorms_data,
+                   const TestCGData_type & testcg_data, const TestNormsData_type & testnorms_data,
                    int global_failure, bool quickPath) {
 
   typedef typename SparseMatrix_type::scalar_type scalar_type;
@@ -214,7 +213,7 @@ void ReportResults(const SparseMatrix_type & A, int numberOfMgLevels, int number
     double fnbytesPerEquation = fnbytes/fnrow;
 
     // Instantiate YAML document
-    OutputFile doc("HPCG-Benchmark", "3.1");
+    OutputFile doc("HPGMP-Benchmark", "1.1");
     doc.add("Release date", "March 28, 2019");
 
     doc.add("Machine Summary","");
@@ -294,14 +293,14 @@ void ReportResults(const SparseMatrix_type & A, int numberOfMgLevels, int number
     doc.get("Spectral Convergence Tests")->get("Preconditioned")->add("Maximum iteration count", testcg_data.niters_max_prec);
     doc.get("Spectral Convergence Tests")->get("Preconditioned")->add("Expected iteration count", testcg_data.expected_niters_prec);
 
-    const char DepartureFromSymmetry[] = "Departure from Symmetry |x'Ay-y'Ax|/(2*||x||*||A||*||y||)/epsilon";
+    /*const char DepartureFromSymmetry[] = "Departure from Symmetry |x'Ay-y'Ax|/(2*||x||*||A||*||y||)/epsilon";
     doc.add(DepartureFromSymmetry,"");
     if (testsymmetry_data.count_fail==0)
       doc.get(DepartureFromSymmetry)->add("Result", "PASSED");
     else
       doc.get(DepartureFromSymmetry)->add("Result", "FAILED");
     doc.get(DepartureFromSymmetry)->add("Departure for SpMV", testsymmetry_data.depsym_spmv);
-    doc.get(DepartureFromSymmetry)->add("Departure for MG", testsymmetry_data.depsym_mg);
+    doc.get(DepartureFromSymmetry)->add("Departure for MG", testsymmetry_data.depsym_mg);*/
 
     doc.add("########## Iterations Summary  ##########","");
     doc.add("Iteration Count Information","");
@@ -374,7 +373,7 @@ void ReportResults(const SparseMatrix_type & A, int numberOfMgLevels, int number
     //doc.get("Sparse Operations Overheads")->add("Halo exchange as percentage of SpMV time", (times[6])/totalSparseMVTime*100.0);
 #endif
     doc.add("Final Summary","");
-    bool isValidRun = (testcg_data.count_fail==0) && (testsymmetry_data.count_fail==0) && (testnorms_data.pass) && (!global_failure);
+    bool isValidRun = (testcg_data.count_fail==0) && (testnorms_data.pass) && (!global_failure);//&& (testsymmetry_data.count_fail==0) 
     if (isValidRun) {
       doc.get("Final Summary")->add("HPCG result is VALID with a GFLOP/s rating of", totalGflops);
       doc.get("Final Summary")->add("HPCG 2.4 rating for historical reasons is", totalGflops24);
@@ -424,9 +423,9 @@ void ReportResults(const SparseMatrix_type & A, int numberOfMgLevels, int number
  * --------------- */
 
 template
-void ReportResults< SparseMatrix<double>, TestCGData<double>, TestSymmetryData<double>, TestNormsData<double> >
-  (SparseMatrix<double> const&, int, int, int, int, double*, TestCGData<double> const&, TestSymmetryData<double> const&, TestNormsData<double> const&, int, bool);
+void ReportResults< SparseMatrix<double>, TestCGData<double>, TestNormsData<double> >
+  (SparseMatrix<double> const&, int, int, int, int, double*, TestCGData<double> const&, TestNormsData<double> const&, int, bool);
 
 template
-void ReportResults< SparseMatrix<float>, TestCGData<float>, TestSymmetryData<float>, TestNormsData<float> >
-  (SparseMatrix<float> const&, int, int, int, int, double*, TestCGData<float> const&, TestSymmetryData<float> const&, TestNormsData<float> const&, int, bool);
+void ReportResults< SparseMatrix<float>, TestCGData<float>, TestNormsData<float> >
+  (SparseMatrix<float> const&, int, int, int, int, double*, TestCGData<float> const&, TestNormsData<float> const&, int, bool);

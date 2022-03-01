@@ -21,7 +21,7 @@
 // Compile this routine only if running with MPI
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
-#include "Utils.hpp"
+#include "Utils_MPI.hpp"
 #include "Geometry.hpp"
 #include "ExchangeHalo.hpp"
 #include <cstdlib>

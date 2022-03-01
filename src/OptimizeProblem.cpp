@@ -103,6 +103,7 @@ int OptimizeProblem(SparseMatrix_type & A, CGData_type & data, Vector_type & b, 
 
     SparseMatrix_type * curLevelMatrix = &A;
     do {
+      // -------------------------
       // form CSR on host
       const local_int_t nrow = curLevelMatrix->localNumberOfRows;
       const local_int_t ncol = curLevelMatrix->localNumberOfColumns;
@@ -123,7 +124,7 @@ int OptimizeProblem(SparseMatrix_type & A, CGData_type & data, Vector_type & b, 
           h_col_ind[nnz+j] = cur_inds[j];
         }
         // sort
-#if 0
+        #if 0
         bool swapped = true;
         do {
           swapped = false;
@@ -140,7 +141,7 @@ int OptimizeProblem(SparseMatrix_type & A, CGData_type & data, Vector_type & b, 
             }
           }
         } while (swapped);
-#endif
+        #endif
         nnz += cur_nnz;
         h_row_ptr[i+1] = nnz;;
       }
@@ -166,6 +167,7 @@ int OptimizeProblem(SparseMatrix_type & A, CGData_type & data, Vector_type & b, 
         printf( " Failed to memcpy A.d_row_ptr\n" );
       }
 
+      // -------------------------
       // Extract lower-triangular matrix
       nnz = 0;
       h_row_ptr[0] = 0;
@@ -205,12 +207,17 @@ int OptimizeProblem(SparseMatrix_type & A, CGData_type & data, Vector_type & b, 
         printf( " Failed to memcpy A.d_row_ptr\n" );
       }
 
+      // -------------------------
       // create Handle (for each matrix)
       cusparseCreate(&(curLevelMatrix->cusparseHandle));
+
+      // -------------------------
+      // descriptor for A
       cusparseCreateMatDescr(&(curLevelMatrix->descrA));
       cusparseSetMatType(curLevelMatrix->descrA, CUSPARSE_MATRIX_TYPE_GENERAL);
       cusparseSetMatIndexBase(curLevelMatrix->descrA, CUSPARSE_INDEX_BASE_ZERO);
 
+      // -------------------------
       // run analysis for triangular solve
       cusparseCreateMatDescr(&(curLevelMatrix->descrL));
       cusparseCreateSolveAnalysisInfo(&(curLevelMatrix->infoL));
@@ -229,6 +236,55 @@ int OptimizeProblem(SparseMatrix_type & A, CGData_type & data, Vector_type & b, 
                                 (float *)curLevelMatrix->d_Lnzvals, curLevelMatrix->d_Lrow_ptr, curLevelMatrix->d_Lcol_idx,
                                 curLevelMatrix->infoL);
       }
+
+      if (curLevelMatrix->mgData!=0) {
+        // free matrix on host
+        free(h_row_ptr);
+        free(h_col_ind);
+        free(h_nzvals);
+
+        // -------------------------
+        // store restriction as CRS
+        local_int_t * f2c = curLevelMatrix->mgData->f2cOperator;
+        local_int_t nc = curLevelMatrix->mgData->rc->localLength;
+        h_row_ptr = (int*)malloc((nc+1)* sizeof(int));
+        h_col_ind = (int*)malloc( nc    * sizeof(int));
+        h_nzvals  = (SC *)malloc( nc    * sizeof(SC));
+
+        h_row_ptr[0] = 0;
+        for (local_int_t i=0; i<nc; ++i) {
+          h_col_ind[i] = f2c[i];
+          h_nzvals[i] = 1.0;
+          h_row_ptr[i+1] = i+1;
+        }
+
+        // copy CSR(A) to device
+        if (cudaSuccess != cudaMalloc ((void**)&(curLevelMatrix->mgData->d_row_ptr), (nc+1)*sizeof(int))) {
+          printf( " Failed to allocate A.d_row_ptr\n" );
+        }
+        if (cudaSuccess != cudaMalloc ((void**)&(curLevelMatrix->mgData->d_col_idx), nc*sizeof(int))) {
+          printf( " Failed to allocate A.d_col_idx\n" );
+        }
+        if (cudaSuccess != cudaMalloc ((void**)&(curLevelMatrix->mgData->d_nzvals),  nc*sizeof(SC))) {
+          printf( " Failed to allocate A.d_row_ptr\n" );
+        }
+
+        if (cudaSuccess != cudaMemcpy(curLevelMatrix->mgData->d_row_ptr, h_row_ptr, (nc+1)*sizeof(int), cudaMemcpyHostToDevice)) {
+          printf( " Failed to memcpy A.d_row_ptr\n" );
+        }
+        if (cudaSuccess != cudaMemcpy(curLevelMatrix->mgData->d_col_idx, h_col_ind, nc*sizeof(int), cudaMemcpyHostToDevice)) {
+          printf( " Failed to memcpy A.d_col_idx\n" );
+        }
+        if (cudaSuccess != cudaMemcpy(curLevelMatrix->mgData->d_nzvals,  h_nzvals,  nc*sizeof(SC),  cudaMemcpyHostToDevice)) {
+          printf( " Failed to memcpy A.d_row_ptr\n" );
+        }
+
+        // -------------------------
+        // descriptor for restrictor
+        cusparseCreateMatDescr(&(curLevelMatrix->mgData->descrA));
+        cusparseSetMatType(curLevelMatrix->mgData->descrA, CUSPARSE_MATRIX_TYPE_GENERAL);
+        cusparseSetMatIndexBase(curLevelMatrix->mgData->descrA, CUSPARSE_INDEX_BASE_ZERO);
+      } //A.mgData!=0
 
       // for debuging, TODO: remove these
       //printf( " %d: A.dy = malloc(%d), A.dx = malloc(%d)\n",curLevelMatrix->geom->rank,nrow,ncol ); fflush(stdout);

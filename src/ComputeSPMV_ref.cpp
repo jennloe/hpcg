@@ -77,10 +77,10 @@ int ComputeSPMV_ref(const SparseMatrix_type & A, Vector_type & x, Vector_type & 
   ExchangeHalo(A, x);
 #endif
 
-
-#ifndef HPCG_NO_OPENMP
+#if !defined(HPCG_WITH_CUDA) | defined(HPCG_DEBUG)
+  #ifndef HPCG_NO_OPENMP
   #pragma omp parallel for
-#endif
+  #endif
   for (local_int_t i=0; i< nrow; i++)  {
     scalar_type sum = 0.0;
     const scalar_type * const cur_vals = A.matrixValues[i];
@@ -91,6 +91,7 @@ int ComputeSPMV_ref(const SparseMatrix_type & A, Vector_type & x, Vector_type & 
       sum += cur_vals[j]*xv[cur_inds[j]];
     yv[i] = sum;
   }
+#endif
 
 #ifdef HPCG_WITH_CUDA
   const scalar_type one  (1.0);

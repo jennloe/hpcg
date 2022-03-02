@@ -60,10 +60,6 @@ int ComputeDotProduct_ref(const local_int_t n, const Vector_type & x, const Vect
   assert(y.localLength>=n);
 
   typedef typename Vector_type::scalar_type scalar_type;
-#ifndef HPCG_NO_MPI
-  MPI_Datatype MPI_SCALAR_TYPE = MpiTypeTraits<scalar_type>::getType ();
-#endif
-
   scalar_type local_result (0.0);
 
 #if !defined(HPCG_WITH_CUDA) | defined(HPCG_DEBUG)

@@ -18,9 +18,8 @@
  HPCG data structures for dense vectors
  */
 #ifndef HPCG_NO_MPI
- #include <mpi.h>
+ #include "Utils_MPI.hpp"
 #endif
-#include "Utils.hpp"
 #include "ComputeGEMVT.hpp"
 
 template<class MultiVector_type, class Vector_type, class SerialDenseMatrix_type>

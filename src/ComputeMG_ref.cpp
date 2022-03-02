@@ -25,7 +25,7 @@
 #include "ComputeRestriction_ref.hpp"
 #include "ComputeProlongation_ref.hpp"
 #ifdef HPCG_DEBUG
-#include "hpcg.hpp"
+#include "hpgmp.hpp"
 #endif
 #include <cassert>
 #include <iostream>

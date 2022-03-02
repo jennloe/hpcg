@@ -247,6 +247,16 @@ int main(int argc, char * argv[]) {
   if (rank==0) HPCG_fout << "Total validation (mixed-precision TestGMRES) execution time in main (sec) = " << mytimer() - t1 << endl;
 #endif
 
+  // free
+  //DeleteMatrix(A2);
+  //DeleteMatrix(A);
+  DeleteVector(x);
+  DeleteVector(b);
+  DeleteVector(xexact);
+  DeleteVector(x_overlap);
+  DeleteVector(b_computed);
+  DeleteCGData(data);
+  DeleteCGData(data2);
 
   // Finish up
   HPCG_Finalize();

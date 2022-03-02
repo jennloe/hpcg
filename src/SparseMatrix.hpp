@@ -93,11 +93,18 @@ public:
   SC  *d_nzvals;   //!< values of matrix entries
 
   // to store the lower-triangular matrix on device
+  local_int_t nnzL;
   cusparseMatDescr_t descrL;
   cusparseSolveAnalysisInfo_t infoL;
   int *d_Lrow_ptr;
   int *d_Lcol_idx;
   SC  *d_Lnzvals;   //!< values of matrix entries
+  // to store the strictly upper-triangular matrix on device
+  local_int_t nnzU;
+  cusparseMatDescr_t descrU;
+  int *d_Urow_ptr;
+  int *d_Ucol_idx;
+  SC  *d_Unzvals;   //!< values of matrix entries
 
   // TODO: remove
   Vector<SC> x; // nrow
@@ -198,24 +205,38 @@ inline void DeleteMatrix(SparseMatrix_type & A) {
   delete [] A.mtxIndG[0];
   delete [] A.mtxIndL[0];
 #endif
-  if (A.title)                  delete [] A.title;
-  if (A.nonzerosInRow)             delete [] A.nonzerosInRow;
-  if (A.mtxIndG) delete [] A.mtxIndG;
-  if (A.mtxIndL) delete [] A.mtxIndL;
-  if (A.matrixValues) delete [] A.matrixValues;
-  if (A.matrixDiagonal)           delete [] A.matrixDiagonal;
+  if (A.title)                 delete [] A.title;
+  if (A.nonzerosInRow)         delete [] A.nonzerosInRow;
+  if (A.mtxIndG)               delete [] A.mtxIndG;
+  if (A.mtxIndL)               delete [] A.mtxIndL;
+  if (A.matrixValues)          delete [] A.matrixValues;
+  if (A.matrixDiagonal)        delete [] A.matrixDiagonal;
 
 #ifndef HPCG_NO_MPI
-  if (A.elementsToSend)       delete [] A.elementsToSend;
-  if (A.neighbors)              delete [] A.neighbors;
-  if (A.receiveLength)            delete [] A.receiveLength;
+  if (A.elementsToSend)        delete [] A.elementsToSend;
+  if (A.neighbors)             delete [] A.neighbors;
+  if (A.receiveLength)         delete [] A.receiveLength;
   if (A.sendLength)            delete [] A.sendLength;
   if (A.sendBuffer)            delete [] A.sendBuffer;
 #endif
 
-  if (A.geom!=0) { DeleteGeometry(*A.geom); delete A.geom; A.geom = 0;}
-  if (A.Ac!=0) { DeleteMatrix(*A.Ac); delete A.Ac; A.Ac = 0;} // Delete coarse matrix
-  if (A.mgData!=0) { DeleteMGData(*A.mgData); delete A.mgData; A.mgData = 0;} // Delete MG data
+  if (A.geom!=0) {
+    DeleteGeometry(*A.geom);
+    delete A.geom;
+    A.geom = 0;
+  }
+  if (A.Ac!=0) {
+    // Delete coarse matrix
+    DeleteMatrix(*A.Ac);
+    delete A.Ac; 
+    A.Ac = 0;
+  }
+  if (A.mgData!=0) {
+    // Delete MG data
+    DeleteMGData(*A.mgData);
+    delete A.mgData;
+    A.mgData = 0;
+  }
 
 #ifdef HPCG_WITH_CUDA
   cudaFree (A.d_row_ptr);
@@ -226,12 +247,17 @@ inline void DeleteMatrix(SparseMatrix_type & A) {
   cudaFree (A.d_Lcol_idx);
   cudaFree (A.d_Lnzvals);
 
+  cudaFree (A.d_Urow_ptr);
+  cudaFree (A.d_Ucol_idx);
+  cudaFree (A.d_Unzvals);
+
   DeleteVector (A.x);
   DeleteVector (A.y);
 
   cusparseDestroy(A.cusparseHandle);
   cusparseDestroyMatDescr(A.descrA);
   cusparseDestroyMatDescr(A.descrL);
+  cusparseDestroyMatDescr(A.descrU);
   cusparseDestroySolveAnalysisInfo(A.infoL);
 #endif
   return;

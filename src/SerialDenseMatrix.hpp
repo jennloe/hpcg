@@ -156,7 +156,7 @@ GetMatrixValue(SerialDenseMatrix_type & A, local_int_t i, local_int_t j) {
   @param[in] A the known system matrix
  */
 template<class SerialDenseMatrix_type>
-inline void DeleteSerialDenseMatrix(SerialDenseMatrix_type & A) {
+inline void DeleteDenseMatrix(SerialDenseMatrix_type & A) {
 
   delete [] A.values;
   A.m = 0;

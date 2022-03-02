@@ -176,6 +176,8 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
   // Delete vectors
   DeleteVector(origDiagA);
   DeleteVector(exaggeratedDiagA);
+  DeleteVector(origDiagA2);
+  DeleteVector(exagDiagA2);
   DeleteVector(origB);
   testcg_data.normr = normr;
 

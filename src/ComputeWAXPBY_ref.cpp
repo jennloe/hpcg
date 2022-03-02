@@ -28,8 +28,8 @@
 
  #if defined(HPCG_DEBUG) & !defined(HPCG_NO_MPI)
  #include <mpi.h>
- #include "hpcg.hpp"
- #include "Utils.hpp"
+ #include "hpgmp.hpp"
+ #include "Utils_MPI.hpp"
  #endif
 #endif
 #include <cassert>

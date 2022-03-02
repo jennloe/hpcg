@@ -13,7 +13,7 @@
 //@HEADER
 
 /*!
- @file ComputeSYMGS_ref.cpp
+ @file ComputeGS_Forward_ref.cpp
 
  HPCG routine
  */
@@ -26,8 +26,8 @@
  #include "ComputeWAXPBY.hpp"
  #ifdef HPCG_DEBUG
  #include <mpi.h>
- #include "Utils.hpp"
- #include "hpcg.hpp"
+ #include "Utils_MPI.hpp"
+ #include "hpgmp.hpp"
  #endif
 #endif
 #include "ComputeGS_Forward_ref.hpp"
@@ -114,17 +114,46 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
 #endif
 
 #ifdef HPCG_WITH_CUDA
-  const scalar_type one  (1.0);
+  const scalar_type  one ( 1.0);
+  const scalar_type mone (-1.0);
 
   // workspace
   Vector_type b = A.x; // nrow
+  scalar_type * const d_bv = b.d_values;
 
-  // b = b - Ax
+  #define HPCG_COMPACT_GS
+  #ifdef HPCG_COMPACT_GS
+  scalar_type * const d_x0v = x0.d_values;
+  // b = r - Ux
+  if (cudaSuccess != cudaMemcpy(d_bv, r.d_values, nrow*sizeof(scalar_type), cudaMemcpyDeviceToDevice)) {
+    printf( " Failed to memcpy d_r\n" );
+  }
+  if (std::is_same<scalar_type, double>::value) {
+     if (CUSPARSE_STATUS_SUCCESS != cusparseDcsrmv(A.cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+                                                   nrow, ncol, A.nnzU,
+                                                   (const double*)&mone,  A.descrU,
+                                                                         (double*)A.d_Unzvals, A.d_Urow_ptr, A.d_Ucol_idx,
+                                                                         (double*)d_x0v,
+                                                   (const double*)&one,  (double*)d_bv)) {
+       printf( " Failed cusparseDcsrmv\n" );
+     }
+  } else if (std::is_same<scalar_type, float>::value) {
+     if (CUSPARSE_STATUS_SUCCESS != cusparseScsrmv(A.cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+                                                   nrow, ncol, A.nnzU,
+                                                   (const float*)&mone, A.descrA,
+                                                                        (float*)A.d_Unzvals, A.d_Urow_ptr, A.d_Ucol_idx,
+                                                                        (float*)d_x0v,
+                                                   (const float*)&one,  (float*)d_bv)) {
+       printf( " Failed cusparseScsrmv\n" );
+     }
+  }
+  #else
+  // b = r - Ax0
   ComputeSPMV(A, x0, b);
   ComputeWAXPBY(nrow, -one, b, one, r, b, A.isWaxpbyOptimized);
+  #endif
 
   // x = L^{-1}b
-  scalar_type* d_bv = b.d_values;
   scalar_type* d_xv = x.d_values;
   if (std::is_same<scalar_type, double>::value) {
      if (CUSPARSE_STATUS_SUCCESS != cusparseDcsrsv_solve(A.cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE,
@@ -155,8 +184,10 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
   }
   #endif
 
+  #ifndef HPCG_COMPACT_GS
   // x = x + x0
   ComputeWAXPBY(nrow, one, x, one, x0, x, A.isWaxpbyOptimized);
+  #endif
 
   #ifdef HPCG_DEBUG
   scalar_type l_enorm = 0.0;

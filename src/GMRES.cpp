@@ -270,6 +270,14 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
 //  times[6] += t6; // exchange halo time
 //#endif
   times[0] += mytimer() - t_begin;  // Total time. All done...
+
+  DeleteDenseMatrix(H);
+  DeleteDenseMatrix(h);
+  DeleteDenseMatrix(t);
+  DeleteDenseMatrix(cs);
+  DeleteDenseMatrix(ss);
+  DeleteMultiVector(Q);
+
   return 0;
 }
 

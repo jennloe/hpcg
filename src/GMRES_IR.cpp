@@ -31,6 +31,7 @@
 #include "ComputeWAXPBY.hpp"
 #include "ComputeTRSM.hpp"
 #include "ComputeGEMV.hpp"
+#include "ComputeGEMVT.hpp"
 
 
 // Use TICK and TOCK to time a code section in MATLAB-like fashion
@@ -94,14 +95,17 @@ int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
   Vector_type2 & Ap = data_lo.Ap;
 
   SerialDenseMatrix_type2 H;
+  SerialDenseMatrix_type2 h;
+  SerialDenseMatrix_type2 t;
   SerialDenseMatrix_type2 cs;
   SerialDenseMatrix_type2 ss;
-  SerialDenseMatrix_type2 t;
   MultiVector_type2 Q;
+  MultiVector_type2 P;
   Vector_type2 Qkm1;
   Vector_type2 Qk;
   Vector_type2 Qj;
   InitializeMatrix(H,  restart_length+1, restart_length);
+  InitializeMatrix(h,  restart_length+1, 1);
   InitializeMatrix(t,  restart_length+1, 1);
   InitializeMatrix(cs, restart_length+1, 1);
   InitializeMatrix(ss, restart_length+1, 1);
@@ -178,21 +182,39 @@ int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
       // Qk = A*z
       TICK(); ComputeSPMV(A_lo, z, Qk); TOCK(t3);
 
-      // MGS to orthogonalize z against Q(:,0:k-1), using dots
-      for (int j = 0; j < k; j++) {
-        // get j-th column of Q
-        GetVector(Q, j, Qj);
+      // orthogonalize z against Q(:,0:k-1), using dots
+      bool use_mgs = false;
+      if (use_mgs) {
+        // MGS2
+        for (int j = 0; j < k; j++) {
+          // get j-th column of Q
+          GetVector(Q, j, Qj);
 
-        alpha = zero;
-        for (int i = 0; i < 2; i++) {
-          // beta = Qk'*Qj
-          TICK(); ComputeDotProduct(nrow, Qk, Qj, beta, t4, A.isDotProductOptimized); TOCK(t1);
+          alpha = zero;
+          for (int i = 0; i < 2; i++) {
+            // beta = Qk'*Qj
+            TICK(); ComputeDotProduct(nrow, Qk, Qj, beta, t4, A.isDotProductOptimized); TOCK(t1);
 
-          // Qk = Qk - beta * Qj
-          TICK(); ComputeWAXPBY(nrow, one, Qk, -beta, Qj, Qk, A.isWaxpbyOptimized); TOCK(t2);
-          alpha += beta;
+            // Qk = Qk - beta * Qj
+            TICK(); ComputeWAXPBY(nrow, one, Qk, -beta, Qj, Qk, A.isWaxpbyOptimized); TOCK(t2);
+            alpha += beta;
+          }
+          SetMatrixValue(H, j, k-1, alpha);
         }
-        SetMatrixValue(H, j, k-1, alpha);
+      } else {
+        // CGS2
+        GetMultiVector(Q, 0, k-1, P);
+        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
+        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
+        for(int i = 0; i < k; i++) {
+          SetMatrixValue(H, i, k-1, h.values[i]);
+        }
+        // reorthogonalize
+        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
+        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
+        for(int i = 0; i < k; i++) {
+          AddMatrixValue(H, i, k-1, h.values[i]);
+        }
       }
       // beta = norm(Qk)
       TICK(); ComputeDotProduct(nrow, Qk, Qk, beta, t4, A.isDotProductOptimized); TOCK(t1);
@@ -252,13 +274,13 @@ int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
     // > update x
     ComputeTRSM(k-1, one, H, t);
     if (doPreconditioning) {
-      ComputeGEMV (nrow, k-1, one, Q, t, zero, r); // r = Q*t
+      ComputeGEMV (nrow, k-1, one, Q, t, zero, r, A.isDotProductOptimized); // r = Q*t
       ComputeMG(A_lo, r, z, symmetric);            // z = M*r
       // mixed-precision
       TICK(); ComputeWAXPBY(nrow, one_hi, x_hi, one, z, x_hi, A.isWaxpbyOptimized); TOCK(t2); // x += z
     } else {
       // mixed-precision
-      ComputeGEMV (nrow, k-1, one_hi, Q, t, one_hi, x_hi); // x += Q*t
+      ComputeGEMV (nrow, k-1, one_hi, Q, t, one_hi, x_hi, A.isDotProductOptimized); // x += Q*t
     }
   } // end of outer-loop
 
@@ -276,6 +298,7 @@ int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
 
   DeleteDenseMatrix(H);
   DeleteDenseMatrix(t);
+  DeleteDenseMatrix(h);
   DeleteDenseMatrix(cs);
   DeleteDenseMatrix(ss);
   DeleteMultiVector(Q);

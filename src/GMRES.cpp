@@ -88,10 +88,10 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
   Vector_type & Ap = data.Ap;
 
   SerialDenseMatrix_type H;
+  SerialDenseMatrix_type h;
+  SerialDenseMatrix_type t;
   SerialDenseMatrix_type cs;
   SerialDenseMatrix_type ss;
-  SerialDenseMatrix_type t;
-  SerialDenseMatrix_type h;
   MultiVector_type Q;
   MultiVector_type P;
   Vector_type Qkm1;
@@ -166,6 +166,7 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
       // orthogonalize z against Q(:,0:k-1), using dots
       bool use_mgs = false;
       if (use_mgs) {
+        // MGS2
         for (int j = 0; j < k; j++) {
           // get j-th column of Q
           GetVector(Q, j, Qj);
@@ -182,14 +183,16 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
           SetMatrixValue(H, j, k-1, alpha);
         }
       } else {
+        // CGS2
         GetMultiVector(Q, 0, k-1, P);
-        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h ); // h = Q(1:k)'*q(k+1)
-        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk);  // h = Q(1:k)'*q(k+1)
+        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
+        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
         for(int i = 0; i < k; i++) {
           SetMatrixValue(H, i, k-1, h.values[i]);
 	}
-        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h ); // h = Q(1:k)'*q(k+1)
-        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk);  // h = Q(1:k)'*q(k+1)
+        // reorthogonalize
+        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
+        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
         for(int i = 0; i < k; i++) {
           AddMatrixValue(H, i, k-1, h.values[i]);
 	}
@@ -251,11 +254,11 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
     // > update x
     ComputeTRSM(k-1, one, H, t);
     if (doPreconditioning) {
-      ComputeGEMV(nrow, k-1, one, Q, t, zero, r); *flops += (2*Nrow*(k-1));      // r = Q*t
+      ComputeGEMV(nrow, k-1, one, Q, t, zero, r, A.isDotProductOptimized); *flops += (2*Nrow*(k-1)); // r = Q*t
       ComputeMG(A, r, z, symmetric); *flops += (2*A.totalNumberOfMGNonzeros);    // z = M*r
       TICK(); ComputeWAXPBY(nrow, one, x, one, z, x, A.isWaxpbyOptimized); TOCK(t2); *flops += (2*Nrow); // x += z
     } else {
-      ComputeGEMV (nrow, k-1, one, Q, t, one, x); *flops += (2*Nrow*(k-1)); // x += Q*t
+      ComputeGEMV (nrow, k-1, one, Q, t, one, x, A.isDotProductOptimized); *flops += (2*Nrow*(k-1)); // x += Q*t
     }
   } // end of outer-loop
 

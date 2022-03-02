@@ -15,7 +15,7 @@
 /*!
  @file GMRES.cpp
 
- HPCG routine
+ GMRES routine
  */
 
 #include <fstream>
@@ -185,14 +185,14 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
       } else {
         // CGS2
         GetMultiVector(Q, 0, k-1, P);
-        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
-        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
+        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isGemvOptimized); // h = Q(1:k)'*q(k+1)
+        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isGemvOptimized); // h = Q(1:k)'*q(k+1)
         for(int i = 0; i < k; i++) {
           SetMatrixValue(H, i, k-1, h.values[i]);
 	}
         // reorthogonalize
-        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
-        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
+        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isGemvOptimized); // h = Q(1:k)'*q(k+1)
+        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isGemvOptimized); // h = Q(1:k)'*q(k+1)
         for(int i = 0; i < k; i++) {
           AddMatrixValue(H, i, k-1, h.values[i]);
 	}
@@ -254,11 +254,11 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
     // > update x
     ComputeTRSM(k-1, one, H, t);
     if (doPreconditioning) {
-      ComputeGEMV(nrow, k-1, one, Q, t, zero, r, A.isDotProductOptimized); *flops += (2*Nrow*(k-1)); // r = Q*t
+      ComputeGEMV(nrow, k-1, one, Q, t, zero, r, A.isGemvOptimized); *flops += (2*Nrow*(k-1)); // r = Q*t
       ComputeMG(A, r, z, symmetric); *flops += (2*A.totalNumberOfMGNonzeros);    // z = M*r
       TICK(); ComputeWAXPBY(nrow, one, x, one, z, x, A.isWaxpbyOptimized); TOCK(t2); *flops += (2*Nrow); // x += z
     } else {
-      ComputeGEMV (nrow, k-1, one, Q, t, one, x, A.isDotProductOptimized); *flops += (2*Nrow*(k-1)); // x += Q*t
+      ComputeGEMV (nrow, k-1, one, Q, t, one, x, A.isGemvOptimized); *flops += (2*Nrow*(k-1)); // x += Q*t
     }
   } // end of outer-loop
 

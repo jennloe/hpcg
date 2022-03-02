@@ -65,6 +65,7 @@ public:
   mutable bool isSpmvOptimized;
   mutable bool isMgOptimized;
   mutable bool isWaxpbyOptimized;
+  mutable bool isGemvOptimized;
   /*!
    This is for storing optimized data structres created in OptimizeProblem and
    used inside optimized ComputeSPMV().
@@ -138,8 +139,9 @@ inline void InitializeSparseMatrix(SparseMatrix_type & A, Geometry * geom) {
   // functions that are meant to be optimized.
   A.isDotProductOptimized = true;
   A.isSpmvOptimized       = true;
-  A.isMgOptimized      = true;
+  A.isMgOptimized         = true;
   A.isWaxpbyOptimized     = true;
+  A.isGemvOptimized       = true;
 
 #ifndef HPCG_NO_MPI
   A.numberOfExternalValues = 0;

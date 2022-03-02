@@ -15,7 +15,7 @@
 /*!
  @file GMRES_IR.cpp
 
- HPCG routine
+ GMRES-IR routine
  */
 
 #include <fstream>
@@ -120,16 +120,17 @@ int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
 
   if (!doPreconditioning && A.geom->rank==0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
-#ifdef HPCG_DEBUG
   int print_freq = 1;
+  bool verbose = true;
   if (print_freq>50) print_freq=50;
   if (print_freq<1)  print_freq=1;
-  if (A.geom->rank==0) HPCG_fout << std::endl << " Running GMRES_IR(" << restart_length
-                                 << ") with max-iters = " << max_iter
-                                 << " and tol = " << tolerance
-                                 << (doPreconditioning ? " with precond " : " without precond ")
-                                 << ", nrow = " << nrow << std::endl;
-#endif
+  if (verbose && A.geom->rank==0) {
+    HPCG_fout << std::endl << " Running GMRES_IR(" << restart_length
+                           << ") with max-iters = " << max_iter
+                           << " and tol = " << tolerance
+                           << (doPreconditioning ? " with precond " : " without precond ")
+                           << ", nrow = " << nrow << std::endl;
+  }
   niters = 0;
   bool converged = false;
   while (niters <= max_iter && !converged) {
@@ -150,16 +151,14 @@ int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
     // Record initial residual for convergence testing
     if (niters == 0) normr0 = normr_hi;
     normr = normr_hi;
-    #ifdef HPCG_DEBUG
-    if (A.geom->rank==0) HPCG_fout << "GMRES_IR Residual at the start of restart cycle = "<< normr
-                                   << ", " << normr/normr0 << std::endl;
-    #endif
+    if (verbose && A.geom->rank==0) {
+      HPCG_fout << "GMRES_IR Residual at the start of restart cycle = "<< normr
+                << ", " << normr/normr0 << std::endl;
+    }
 
     if (normr/normr0 <= tolerance) {
       converged = true;
-      #ifdef HPCG_DEBUG
-      if (A.geom->rank==0) HPCG_fout << " > GMRES_IR converged " << std::endl;
-      #endif
+      if (verbose && A.geom->rank==0) HPCG_fout << " > GMRES_IR converged " << std::endl;
     }
 
     // do forward GS instead of symmetric GS
@@ -204,14 +203,14 @@ int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
       } else {
         // CGS2
         GetMultiVector(Q, 0, k-1, P);
-        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
-        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
+        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isGemvOptimized); // h = Q(1:k)'*q(k+1)
+        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isGemvOptimized); // h = Q(1:k)'*q(k+1)
         for(int i = 0; i < k; i++) {
           SetMatrixValue(H, i, k-1, h.values[i]);
         }
         // reorthogonalize
-        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
-        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isDotProductOptimized); // h = Q(1:k)'*q(k+1)
+        ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isGemvOptimized); // h = Q(1:k)'*q(k+1)
+        ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isGemvOptimized); // h = Q(1:k)'*q(k+1)
         for(int i = 0; i < k; i++) {
           AddMatrixValue(H, i, k-1, h.values[i]);
         }
@@ -258,29 +257,26 @@ int GMRES_IR(const SparseMatrix_type & A, const SparseMatrix_type2 & A_lo,
       SetMatrixValue(cs, k-1, 0, cj);
 
       normr = std::abs(v2);
-      #ifdef HPCG_DEBUG
-        if (A.geom->rank==0 && (k%print_freq == 0 || k+1 == restart_length))
-          HPCG_fout << "GMRES_IR Iteration = "<< k << " (" << niters << ")   Scaled Residual = "
-                    << normr << " / " << normr0 << " = " << normr/normr0 << std::endl;
-      #endif
+      if (verbose && A.geom->rank==0 && (k%print_freq == 0 || k+1 == restart_length)) {
+        HPCG_fout << "GMRES_IR Iteration = "<< k << " (" << niters << ")   Scaled Residual = "
+                  << normr << " / " << normr0 << " = " << normr/normr0 << std::endl;
+      }
       niters ++;
       k ++;
     } // end of restart-cycle
     // prepare to restart
-    #ifdef HPCG_DEBUG
-      if (A.geom->rank==0)
-        HPCG_fout << "GMRES_IR restart: k = "<< k << " (" << niters << ")" << std::endl;
-    #endif
+    if (verbose && A.geom->rank==0)
+      HPCG_fout << "GMRES_IR restart: k = "<< k << " (" << niters << ")" << std::endl;
     // > update x
     ComputeTRSM(k-1, one, H, t);
     if (doPreconditioning) {
-      ComputeGEMV (nrow, k-1, one, Q, t, zero, r, A.isDotProductOptimized); // r = Q*t
-      ComputeMG(A_lo, r, z, symmetric);            // z = M*r
+      ComputeGEMV (nrow, k-1, one, Q, t, zero, r, A.isGemvOptimized); // r = Q*t
+      ComputeMG(A_lo, r, z, symmetric);       // z = M*r
       // mixed-precision
       TICK(); ComputeWAXPBY(nrow, one_hi, x_hi, one, z, x_hi, A.isWaxpbyOptimized); TOCK(t2); // x += z
     } else {
       // mixed-precision
-      ComputeGEMV (nrow, k-1, one_hi, Q, t, one_hi, x_hi, A.isDotProductOptimized); // x += Q*t
+      ComputeGEMV (nrow, k-1, one_hi, Q, t, one_hi, x_hi, A.isGemvOptimized); // x += Q*t
     }
   } // end of outer-loop
 

@@ -78,7 +78,7 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
   ExchangeHalo(A, x);
 
   #ifdef HPCG_WITH_CUDA
-  // Copy orinal x (after Halo Exchange) in x0 on device
+  // Copy orinal x (after Halo Exchange) into x0 on device
   Vector_type x0 = A.y; // ncol
   scalar_type * const x0v = x0.values;
   CopyVector(x, x0); // this also copy on CPU, which is needed only for debug

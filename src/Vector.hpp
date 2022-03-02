@@ -80,11 +80,18 @@ inline void InitializeVector(Vector_type & v, local_int_t localLength) {
  */
 template<class Vector_type>
 inline void ZeroVector(Vector_type & v) {
-  //typedef typename Vector_type::scalar_type scalar_type;
-  //local_int_t localLength = v.localLength;
-  //scalar_type * vv = v.values;
-  //for (int i=0; i<localLength; ++i) vv[i] = 0.0;
-  ScaleVectorValue(v, 0.0);
+  typedef typename Vector_type::scalar_type scalar_type;
+  const scalar_type zero (0.0);
+
+  local_int_t localLength = v.localLength;
+  scalar_type * vv = v.values;
+  for (int i=0; i<localLength; ++i) vv[i] = zero;
+#ifdef HPCG_WITH_CUDA
+  scalar_type * d_vv = v.d_values;
+  if (cudaSuccess != cudaMemset(d_vv, zero, localLength*sizeof(scalar_type))) {
+    printf( " CopyVector :: Failed to memcpy d_v\n" );
+  }
+#endif
   return;
 }
 /*!
@@ -111,10 +118,12 @@ inline void ScaleVectorValue(Vector_type & v, local_int_t index, typename Vector
 template<class Vector_type>
 inline void ScaleVectorValue(Vector_type & v, typename Vector_type::scalar_type value) {
   typedef typename Vector_type::scalar_type scalar_type;
+  const scalar_type zero (0.0);
+
   local_int_t localLength = v.localLength;
   scalar_type * vv = v.values;
-  if (value == 0.0) {
-    for (int i=0; i<localLength; ++i) vv[i] = 0.0;
+  if (value == zero) {
+    for (int i=0; i<localLength; ++i) vv[i] = zero;
   } else {
     for (int i=0; i<localLength; ++i) vv[i] *= value;
   }

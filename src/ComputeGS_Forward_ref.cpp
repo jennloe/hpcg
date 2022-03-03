@@ -65,11 +65,20 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
   const local_int_t nrow = A.localNumberOfRows;
   const local_int_t ncol = A.localNumberOfColumns;
 
+  const scalar_type * const rv = r.values;
+  scalar_type * const xv = x.values;
+
 #ifndef HPCG_NO_MPI
   #ifdef HPCG_WITH_CUDA
+  // workspace
+  Vector_type b = A.x; // nrow
+  scalar_type * const d_bv = b.d_values;
+
+  scalar_type * const d_xv = x.d_values;
+
   // Copy local part of X to HOST CPU
   if (A.geom->rank==0) printf( " HaloExchange on Host for GS_Forward\n" );
-  if (cudaSuccess != cudaMemcpy(x.values, x.d_values, nrow*sizeof(scalar_type), cudaMemcpyDeviceToHost)) {
+  if (cudaSuccess != cudaMemcpy(xv, d_xv, nrow*sizeof(scalar_type), cudaMemcpyDeviceToHost)) {
     printf( " Failed to memcpy d_y\n" );
   }
   #endif
@@ -78,10 +87,18 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
   ExchangeHalo(A, x);
 
   #ifdef HPCG_WITH_CUDA
-  // Copy orinal x (after Halo Exchange) into x0 on device
+  // Copy X (after Halo Exchange on host) to device
+  #define HPCG_COMPACT_GS
+  #ifdef HPCG_COMPACT_GS
+  // Copy non-local part of X (after Halo Exchange) into x0 on device
+  if (cudaSuccess != cudaMemcpy(&d_xv[nrow], &xv[nrow], (ncol-nrow)*sizeof(scalar_type), cudaMemcpyHostToDevice)) {
+    printf( " Failed to memcpy d_y\n" );
+  }
+  #else
   Vector_type x0 = A.y; // ncol
   scalar_type * const x0v = x0.values;
   CopyVector(x, x0); // this also copy on CPU, which is needed only for debug
+  #endif
 
   #ifdef HPCG_DEBUG
   if (A.geom->rank==0) {
@@ -93,8 +110,6 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
 
 #if !defined(HPCG_WITH_CUDA) | defined(HPCG_DEBUG)
   scalar_type ** matrixDiagonal = A.matrixDiagonal;  // An array of pointers to the diagonal entries A.matrixValues
-  const scalar_type * const rv = r.values;
-  scalar_type * const xv = x.values;
 
   for (local_int_t i=0; i < nrow; i++) {
     const scalar_type * const currentValues = A.matrixValues[i];
@@ -117,13 +132,7 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
   const scalar_type  one ( 1.0);
   const scalar_type mone (-1.0);
 
-  // workspace
-  Vector_type b = A.x; // nrow
-  scalar_type * const d_bv = b.d_values;
-
-  #define HPCG_COMPACT_GS
   #ifdef HPCG_COMPACT_GS
-  scalar_type * const d_x0v = x0.d_values;
   // b = r - Ux
   if (cudaSuccess != cudaMemcpy(d_bv, r.d_values, nrow*sizeof(scalar_type), cudaMemcpyDeviceToDevice)) {
     printf( " Failed to memcpy d_r\n" );
@@ -133,7 +142,7 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
                                                    nrow, ncol, A.nnzU,
                                                    (const double*)&mone,  A.descrU,
                                                                          (double*)A.d_Unzvals, A.d_Urow_ptr, A.d_Ucol_idx,
-                                                                         (double*)d_x0v,
+                                                                         (double*)d_xv,
                                                    (const double*)&one,  (double*)d_bv)) {
        printf( " Failed cusparseDcsrmv\n" );
      }
@@ -142,7 +151,7 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
                                                    nrow, ncol, A.nnzU,
                                                    (const float*)&mone, A.descrA,
                                                                         (float*)A.d_Unzvals, A.d_Urow_ptr, A.d_Ucol_idx,
-                                                                        (float*)d_x0v,
+                                                                        (float*)d_xv,
                                                    (const float*)&one,  (float*)d_bv)) {
        printf( " Failed cusparseScsrmv\n" );
      }
@@ -154,7 +163,6 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
   #endif
 
   // x = L^{-1}b
-  scalar_type* d_xv = x.d_values;
   if (std::is_same<scalar_type, double>::value) {
      if (CUSPARSE_STATUS_SUCCESS != cusparseDcsrsv_solve(A.cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE,
                                                          nrow,

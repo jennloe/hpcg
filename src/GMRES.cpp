@@ -113,7 +113,10 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
                            << ") with max-iters = " << max_iter
                            << " and tol = " << tolerance
                            << (doPreconditioning ? " with precond " : " without precond ")
-                           << ", nrow = " << nrow << std::endl;
+                           << ", nrow = " << nrow 
+                           << " on ( " << A.geom->npx << " x " << A.geom->npy << " x " << A.geom->npz
+                           << " ) MPI grid "
+                           << std::endl;
   }
   niters = 0;
   *flops = 0;
@@ -189,13 +192,13 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
         ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isGemvOptimized); // h = Q(1:k)'*q(k+1)
         for(int i = 0; i < k; i++) {
           SetMatrixValue(H, i, k-1, h.values[i]);
-	}
+        }
         // reorthogonalize
         ComputeGEMVT (nrow, k,  one, P, Qk, zero, h, A.isGemvOptimized); // h = Q(1:k)'*q(k+1)
         ComputeGEMV  (nrow, k, -one, P, h,  one, Qk, A.isGemvOptimized); // h = Q(1:k)'*q(k+1)
         for(int i = 0; i < k; i++) {
           AddMatrixValue(H, i, k-1, h.values[i]);
-	}
+        }
       }
       *flops += (2*k*Nrow);
       // beta = norm(Qk)

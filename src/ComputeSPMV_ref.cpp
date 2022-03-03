@@ -101,12 +101,10 @@ int ComputeSPMV_ref(const SparseMatrix_type & A, Vector_type & x, Vector_type & 
 
   scalar_type * const d_xv = x.d_values;
   scalar_type * const d_yv = y.d_values;
-  #if 1
-  // copy vectors to device (after Halo exchange)
-  if (cudaSuccess != cudaMemcpy(d_xv, xv, ncol*sizeof(scalar_type), cudaMemcpyHostToDevice)) {
+  // copy non-local part of X to device (after Halo exchange)
+  if (cudaSuccess != cudaMemcpy(&d_xv[nrow], &xv[nrow], (ncol-nrow)*sizeof(scalar_type), cudaMemcpyHostToDevice)) {
     printf( " Failed to memcpy d_x\n" );
   }
-  #endif
 
   if (std::is_same<scalar_type, double>::value) {
      if (CUSPARSE_STATUS_SUCCESS != cusparseDcsrmv(A.cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE,

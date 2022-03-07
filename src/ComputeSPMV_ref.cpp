@@ -66,15 +66,17 @@ int ComputeSPMV_ref(const SparseMatrix_type & A, Vector_type & x, Vector_type & 
   scalar_type * const yv = y.values;
 
 #ifndef HPCG_NO_MPI
-  #ifdef HPCG_WITH_CUDA
-  // Copy local part of X to HOST CPU
-  if (A.geom->rank==0) printf( " HaloExchange on Host for SpMV\n" );
-  if (cudaSuccess != cudaMemcpy(xv, x.d_values, nrow*sizeof(scalar_type), cudaMemcpyDeviceToHost)) {
-    printf( " Failed to memcpy d_y\n" );
-  }
-  #endif
+  if (A.geom->size > 1) {
+    #ifdef HPCG_WITH_CUDA
+    // Copy local part of X to HOST CPU
+    if (A.geom->rank==0) printf( " HaloExchange on Host for SpMV\n" );
+    if (cudaSuccess != cudaMemcpy(xv, x.d_values, nrow*sizeof(scalar_type), cudaMemcpyDeviceToHost)) {
+      printf( " Failed to memcpy d_y\n" );
+    }
+    #endif
 
-  ExchangeHalo(A, x);
+    ExchangeHalo(A, x);
+  }
 #endif
 
 #if !defined(HPCG_WITH_CUDA) | defined(HPCG_DEBUG)
@@ -101,9 +103,11 @@ int ComputeSPMV_ref(const SparseMatrix_type & A, Vector_type & x, Vector_type & 
 
   scalar_type * const d_xv = x.d_values;
   scalar_type * const d_yv = y.d_values;
-  // copy non-local part of X to device (after Halo exchange)
-  if (cudaSuccess != cudaMemcpy(&d_xv[nrow], &xv[nrow], (ncol-nrow)*sizeof(scalar_type), cudaMemcpyHostToDevice)) {
-    printf( " Failed to memcpy d_x\n" );
+  if (A.geom->size > 1) {
+    // copy non-local part of X to device (after Halo exchange)
+    if (cudaSuccess != cudaMemcpy(&d_xv[nrow], &xv[nrow], (ncol-nrow)*sizeof(scalar_type), cudaMemcpyHostToDevice)) {
+      printf( " Failed to memcpy d_x\n" );
+    }
   }
 
   if (std::is_same<scalar_type, double>::value) {

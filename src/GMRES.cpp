@@ -57,14 +57,14 @@
 
   @return Returns zero on success and a non-zero value otherwise.
 
-  @see CG_ref()
+  @see GMRES_ref()
 */
 template<class SparseMatrix_type, class CGData_type, class Vector_type>
 int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b, Vector_type & x,
           const int restart_length, const int max_iter, const typename SparseMatrix_type::scalar_type tolerance,
           int & niters, typename SparseMatrix_type::scalar_type & normr,  typename SparseMatrix_type::scalar_type & normr0,
-          double * times, double *flops, bool doPreconditioning) {
-
+          double * times, double * flops, bool doPreconditioning) {
+ 
   typedef typename SparseMatrix_type::scalar_type scalar_type;
   typedef MultiVector<scalar_type> MultiVector_type;
   typedef SerialDenseMatrix<scalar_type> SerialDenseMatrix_type;
@@ -72,7 +72,7 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
   const scalar_type one  (1.0);
   const scalar_type zero (0.0);
   double t_begin = mytimer();  // Start timing right away
-  double t0 = 0.0, t1 = 0.0, t2 = 0.0, t3 = 0.0, t4 = 0.0, t5 = 0.0;
+  double t0 = 0.0, t1 = 0.0, t2 = 0.0, t3 = 0.0, t4 = 0.0, t5 = 0.0, t6 = 0.0;
 
   normr = 0.0;
   scalar_type rtz = zero, oldrtz = zero, alpha = zero, beta = zero, pAp = zero;
@@ -118,20 +118,24 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
                            << " ) MPI grid "
                            << std::endl;
   }
+  *flops = 0.0;
+  double flops_gmg  = 0.0;
+  double flops_spmv = 0.0;
+  double flops_orth = 0.0;
+  global_int_t numSpMVs_MG = 1+(A.mgData->numberOfPresmootherSteps + A.mgData->numberOfPostsmootherSteps);
   niters = 0;
-  *flops = 0;
   bool converged = false;
   while (niters <= max_iter && !converged) {
     // p is of length ncols, copy x to p for sparse MV operation
     CopyVector(x, p);
-    TICK(); ComputeSPMV(A, p, Ap); TOCK(t3); *flops += (2*A.totalNumberOfNonzeros); // Ap = A*p
+    TICK(); ComputeSPMV(A, p, Ap); TOCK(t3); flops_spmv += (2*A.totalNumberOfNonzeros); // Ap = A*p
     TICK(); ComputeWAXPBY(nrow, one, b, -one, Ap, r, A.isWaxpbyOptimized); TOCK(t2); *flops += (2*Nrow); // r = b - Ax (x stored in p)
     TICK(); ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized); *flops += (2*Nrow); TOCK(t1);
     normr = sqrt(normr);
     GetVector(Q, 0, Qj);
     CopyVector(r, Qj);
     //TICK(); ComputeWAXPBY(nrow, zero, Qj, one/normr, Qj, Qj, A.isWaxpbyOptimized); TOCK(t2);
-    TICK(); ScaleVectorValue(Qj, one/normr); TOCK(t2); *flops += (2*Nrow);
+    TICK(); ScaleVectorValue(Qj, one/normr); TOCK(t2); *flops += Nrow;
 
     // Record initial residual for convergence testing
     if (niters == 0) normr0 = normr;
@@ -156,18 +160,19 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
 
       TICK();
       if (doPreconditioning) {
-        ComputeMG(A, Qkm1, z, symmetric); *flops += (2*A.totalNumberOfMGNonzeros); // Apply preconditioner
+        ComputeMG(A, Qkm1, z, symmetric); flops_gmg += (2*numSpMVs_MG*A.totalNumberOfMGNonzeros); // Apply preconditioner
       } else {
         CopyVector(Qkm1, z);              // copy r to z (no preconditioning)
       }
       TOCK(t5); // Preconditioner apply time
 
       // Qk = A*z
-      TICK(); ComputeSPMV(A, z, Qk); TOCK(t3); *flops += (2*A.totalNumberOfNonzeros);
+      TICK(); ComputeSPMV(A, z, Qk); flops_spmv += (2*A.totalNumberOfNonzeros); TOCK(t3);
 
 
       // orthogonalize z against Q(:,0:k-1), using dots
       bool use_mgs = false;
+      TICK();
       if (use_mgs) {
         // MGS2
         for (int j = 0; j < k; j++) {
@@ -200,14 +205,15 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
           AddMatrixValue(H, i, k-1, h.values[i]);
         }
       }
-      *flops += (2*k*Nrow);
+      TOCK(t6); // Ortho time
+      flops_orth += (2*k*Nrow);
       // beta = norm(Qk)
-      TICK(); ComputeDotProduct(nrow, Qk, Qk, beta, t4, A.isDotProductOptimized); TOCK(t1); *flops += (2*Nrow);
+      TICK(); ComputeDotProduct(nrow, Qk, Qk, beta, t4, A.isDotProductOptimized); *flops += (2*Nrow); TOCK(t1);
       beta = sqrt(beta);
 
       // Qk = Qk / beta
       //TICK(); ComputeWAXPBY(nrow, zero, Qk, one/beta, Qk, Qk, A.isWaxpbyOptimized); TOCK(t2);
-      TICK(); ScaleVectorValue(Qk, one/beta); TOCK(t2); *flops += Nrow;
+      TICK(); ScaleVectorValue(Qk, one/beta); *flops += Nrow; TOCK(t2);
       SetMatrixValue(H, k, k-1, beta);
 
       // Given's rotation
@@ -258,7 +264,9 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
     ComputeTRSM(k-1, one, H, t);
     if (doPreconditioning) {
       ComputeGEMV(nrow, k-1, one, Q, t, zero, r, A.isGemvOptimized); *flops += (2*Nrow*(k-1)); // r = Q*t
-      ComputeMG(A, r, z, symmetric); *flops += (2*A.totalNumberOfMGNonzeros);    // z = M*r
+      TICK();
+      ComputeMG(A, r, z, symmetric); flops_gmg += (2*numSpMVs_MG*A.totalNumberOfMGNonzeros);      // z = M*r
+      TOCK(t5); // Preconditioner apply time
       TICK(); ComputeWAXPBY(nrow, one, x, one, z, x, A.isWaxpbyOptimized); TOCK(t2); *flops += (2*Nrow); // x += z
     } else {
       ComputeGEMV (nrow, k-1, one, Q, t, one, x, A.isGemvOptimized); *flops += (2*Nrow*(k-1)); // x += Q*t
@@ -276,6 +284,20 @@ int GMRES(const SparseMatrix_type & A, CGData_type & data, const Vector_type & b
 //  times[6] += t6; // exchange halo time
 //#endif
   times[0] += mytimer() - t_begin;  // Total time. All done...
+  if (verbose && A.geom->rank==0) {
+    HPCG_fout << " > nnz(A)  : " << A.totalNumberOfNonzeros << std::endl;
+    HPCG_fout << " > nnz(MG) : " << A.totalNumberOfMGNonzeros << " (" << numSpMVs_MG << ")" << std::endl;
+    HPCG_fout << " > SpMV : " << (flops_spmv / 1000000000.0) << " / " << t3 << " = "
+                              << (flops_spmv / 1000000000.0) / t3 << " Gflop/s" << std::endl;
+    HPCG_fout << " > GMG  : " << (flops_gmg  / 1000000000.0) << " / " << t5 << " = "
+                              << (flops_gmg  / 1000000000.0) / t5 << " Gflop/s" << std::endl;
+    HPCG_fout << " > Orth : " << (flops_orth / 1000000000.0) << " / " << t6 << " = "
+                              << (flops_orth / 1000000000.0) / t6 << " Gflop/s" << std::endl;
+    HPCG_fout << std::endl;
+  }
+  *flops += flops_gmg;
+  *flops += flops_spmv;
+  *flops += flops_orth;
 
   DeleteDenseMatrix(H);
   DeleteDenseMatrix(h);

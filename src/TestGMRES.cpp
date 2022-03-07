@@ -139,6 +139,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
         HPCG_fout << " Time     " << time_solve << " seconds." << endl;
         HPCG_fout << " Gflop/s  " << flops/1000000000.0 << "/" << time_solve << " = " << (flops/1000000000.0)/time_solve 
                   << " (n = " << A.totalNumberOfRows << ")" << endl;
+        HPCG_fout << " Time/itr " << time_solve / niters << endl;
       }
     }
   }
@@ -151,7 +152,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
     for (int i=0; i< numberOfCgCalls; ++i) {
       ZeroVector(x); // Zero out x
       double time_tic = mytimer();
-      int ierr = GMRES_IR(A, A_lo, data, data_lo, b, x, restart_length, maxIters, tolerance, niters, normr, normr0, &times[0], k);
+      int ierr = GMRES_IR(A, A_lo, data, data_lo, b, x, restart_length, maxIters, tolerance, niters, normr, normr0, &times[0], &flops, k);
       double time_solve = mytimer() - time_tic;
       if (ierr) HPCG_fout << "Error in call to GMRES-IR: " << ierr << ".\n" << endl;
       if (niters <= expected_niters) {
@@ -165,6 +166,9 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
         HPCG_fout << "Call [" << i << "] Number of GMRES-IR Iterations [" << niters <<"] Scaled Residual [" << normr/normr0 << "]" << endl;
         HPCG_fout << " Expected " << expected_niters << " iterations.  Performed " << niters << "." << endl;
         HPCG_fout << " Time     " << time_solve << " seconds." << endl;
+        HPCG_fout << " Gflop/s  " << flops/1000000000.0 << "/" << time_solve << " = " << (flops/1000000000.0)/time_solve 
+                  << " (n = " << A.totalNumberOfRows << ")" << endl;
+        HPCG_fout << " Time/itr " << time_solve / niters << endl;
       }
     }
   }

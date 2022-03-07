@@ -185,19 +185,16 @@ int main(int argc, char * argv[]) {
   scalar_type normr0 = 0.0;
   int restart_length = 50;
   int refMaxIters = 50;
-  numberOfCalls = 1; // Only need to run the residual reduction analysis once
 
   // Compute the residual reduction for the natural ordering and reference kernels
   double flops = 0.0;
   std::vector< double > ref_times(9,0.0);
   scalar_type tolerance = 0.0; // Set tolerance to zero to make all runs do maxIters iterations
   int err_count = 0;
-  for (int i=0; i< numberOfCalls; ++i) {
-    ZeroVector(x);
-    ierr = GMRES(A, data, b, x, restart_length, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], &flops, true);
-    if (ierr) ++err_count; // count the number of errors in GMRES.
-    totalNiters_ref += niters;
-  }
+  ZeroVector(x);
+  ierr = GMRES(A, data, b, x, restart_length, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], &flops, true);
+  if (ierr) ++err_count; // count the number of errors in GMRES.
+  totalNiters_ref += niters;
   if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to reference GMRES." << endl;
   scalar_type refTolerance = normr / normr0;
 
@@ -298,8 +295,6 @@ int main(int argc, char * argv[]) {
   DeleteVector(x);
   DeleteVector(b);
   DeleteVector(xexact);
-  DeleteVector(x_overlap);
-  DeleteVector(b_computed);
   //delete [] testnorms_data.values;
 
   // Finish up

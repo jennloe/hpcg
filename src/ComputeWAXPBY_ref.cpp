@@ -28,7 +28,7 @@
 
  #if defined(HPCG_DEBUG) & !defined(HPCG_NO_MPI)
  #include <mpi.h>
- #include "hpgmp.hpp"
+ #include "Hpgmp_Params.hpp"
  #include "Utils_MPI.hpp"
  #endif
 #endif

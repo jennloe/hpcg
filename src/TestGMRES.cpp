@@ -30,7 +30,7 @@
 #include <iostream>
 using std::endl;
 #include <vector>
-#include "hpgmp.hpp"
+#include "Hpgmp_Params.hpp"
 
 #include "TestGMRES.hpp"
 #include "GMRES.hpp"

@@ -35,7 +35,7 @@ using std::endl;
 
 #include <vector>
 
-#include "hpgmp.hpp"
+#include "Hpgmp_Params.hpp"
 
 #include "SetupProblem.hpp"
 #include "CheckAspectRatio.hpp"
@@ -169,39 +169,6 @@ int main(int argc, char * argv[]) {
     HPCG_fout << " Setup    Time     " << setup_time << " seconds." << endl;
     HPCG_fout << " Optimize Time     " << t7 << " seconds." << endl;
   }
-
-  ////////////////////////////////////
-  // Reference SpMV+MG Timing Phase //
-  ////////////////////////////////////
-
-  // Call Reference SpMV and MG. Compute Optimization time as ratio of times in these routines
-
-  local_int_t nrow = A.localNumberOfRows;
-  local_int_t ncol = A.localNumberOfColumns;
-
-  Vector_type x_overlap, b_computed;
-  InitializeVector(x_overlap, ncol); // Overlapped copy of x vector
-  InitializeVector(b_computed, nrow); // Computed RHS vector
-
-
-  // Record execution time of reference SpMV and MG kernels for reporting times
-  // First load vector with random values
-  FillRandomVector(x_overlap);
-
-  int numberOfCalls = 10;
-  if (quickPath) numberOfCalls = 1; //QuickPath means we do on one call of each block of repetitive code
-  double t_begin = mytimer();
-  for (int i=0; i< numberOfCalls; ++i) {
-    ierr = ComputeSPMV_ref(A, x_overlap, b_computed); // b_computed = A*x_overlap
-    if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
-    ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
-    if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
-  }
-  times[8] = (mytimer() - t_begin)/((double) numberOfCalls);  // Total time divided by number of calls.
-#ifdef HPCG_DEBUG
-  if (rank==0) HPCG_fout << "Total SpMV+MG timing phase execution time in main (sec) = " << mytimer() - t1 << endl;
-#endif
-
 
   ///////////////////////////////
   // Reference GMRES Timing Phase //

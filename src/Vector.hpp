@@ -28,7 +28,7 @@
 #ifdef HPCG_WITH_CUDA
  #include <cuda_runtime.h>
  #include <cublas_v2.h>
- #include "hpgmp.hpp"
+ #include "Hpgmp_Params.hpp"
 #endif
 
 #include "Geometry.hpp"

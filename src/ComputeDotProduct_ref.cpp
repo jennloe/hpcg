@@ -35,7 +35,7 @@
 #include "ComputeDotProduct_ref.hpp"
 
 #ifdef HPCG_DEBUG
-#include "hpgmp.hpp"
+#include "Hpgmp_Params.hpp"
 #endif
 
 /*!

@@ -27,7 +27,7 @@
  #ifdef HPCG_DEBUG
  #include <mpi.h>
  #include "Utils_MPI.hpp"
- #include "hpgmp.hpp"
+ #include "Hpgmp_Params.hpp"
  #endif
 #endif
 #include "ComputeGS_Forward_ref.hpp"

@@ -14,7 +14,7 @@
 
 #include <fstream>
 
-#include "hpgmp.hpp"
+#include "Hpgmp_Params.hpp"
 
 /*!
   Closes the I/O stream used for logging information throughout the HPCG run.

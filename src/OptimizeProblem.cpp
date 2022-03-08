@@ -151,16 +151,35 @@ int OptimizeProblem(SparseMatrix_type & A, CGData_type & data, Vector_type & b, 
         printf( " Failed to allocate A.d_nzvals(nnz=%d)\n",nnz );
       }
 
-      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_row_ptr, h_row_ptr, (nrow+1)*sizeof(int), hipMemcpyHostToDevice)) {
+      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_row_ptr, h_row_ptr, (nrow+1)*sizeof(int), cudaMemcpyHostToDevice)) {
         printf( " Failed to memcpy A.d_row_ptr\n" );
       }
-      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_col_idx, h_col_ind, nnz*sizeof(int), hipMemcpyHostToDevice)) {
+      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_col_idx, h_col_ind, nnz*sizeof(int), cudaMemcpyHostToDevice)) {
         printf( " Failed to memcpy A.d_col_idx\n" );
       }
-      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_nzvals,  h_nzvals,  nnz*sizeof(SC),  hipMemcpyHostToDevice)) {
+      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_nzvals,  h_nzvals,  nnz*sizeof(SC),  cudaMemcpyHostToDevice)) {
         printf( " Failed to memcpy A.d_nzvals\n" );
       }
       #elif defined(HPCG_WITH_HIP)
+      if (hipSuccess != hipMalloc ((void**)&(curLevelMatrix->d_row_ptr), (nrow+1)*sizeof(int))) {
+        printf( " Failed to allocate A.d_row_ptr(nrow=%d)\n",nrow );
+      }
+      if (hipSuccess != hipMalloc ((void**)&(curLevelMatrix->d_col_idx), nnz*sizeof(int))) {
+        printf( " Failed to allocate A.d_col_idx(nnz=%d)\n",nnz );
+      }
+      if (hipSuccess != hipMalloc ((void**)&(curLevelMatrix->d_nzvals),  nnz*sizeof(SC))) {
+        printf( " Failed to allocate A.d_nzvals(nnz=%d)\n",nnz );
+      }
+
+      if (hipSuccess != hipMemcpy(curLevelMatrix->d_row_ptr, h_row_ptr, (nrow+1)*sizeof(int), hipMemcpyHostToDevice)) {
+        printf( " Failed to memcpy A.d_row_ptr\n" );
+      }
+      if (hipSuccess != hipMemcpy(curLevelMatrix->d_col_idx, h_col_ind, nnz*sizeof(int), hipMemcpyHostToDevice)) {
+        printf( " Failed to memcpy A.d_col_idx\n" );
+      }
+      if (hipSuccess != hipMemcpy(curLevelMatrix->d_nzvals,  h_nzvals,  nnz*sizeof(SC), hipMemcpyHostToDevice)) {
+        printf( " Failed to memcpy A.d_nzvals\n" );
+      }
       #endif
 
       // free matrix on host
@@ -258,16 +277,34 @@ int OptimizeProblem(SparseMatrix_type & A, CGData_type & data, Vector_type & b, 
         printf( " Failed to allocate A.d_Urow_ptr(nnzU=%d)\n",nnzU );
       }
 
-      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_Urow_ptr, h_Urow_ptr, (nrow+1)*sizeof(int), hipMemcpyHostToDevice)) {
+      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_Urow_ptr, h_Urow_ptr, (nrow+1)*sizeof(int), cudaMemcpyHostToDevice)) {
         printf( " Failed to memcpy A.d_Urow_ptr\n" );
       }
-      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_Ucol_idx, h_Ucol_ind, nnzU*sizeof(int), hipMemcpyHostToDevice)) {
+      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_Ucol_idx, h_Ucol_ind, nnzU*sizeof(int), cudaMemcpyHostToDevice)) {
         printf( " Failed to memcpy A.d_Ucol_idx\n" );
       }
-      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_Unzvals,  h_Unzvals,  nnzU*sizeof(SC),  hipMemcpyHostToDevice)) {
+      if (cudaSuccess != cudaMemcpy(curLevelMatrix->d_Unzvals,  h_Unzvals,  nnzU*sizeof(SC),  cudaMemcpyHostToDevice)) {
         printf( " Failed to memcpy A.d_Urow_ptr\n" );
       }
       #elif defined(HPCG_WITH_HIP)
+      if (hipSuccess != hipMalloc ((void**)&(curLevelMatrix->d_Urow_ptr), (nrow+1)*sizeof(int))) {
+        printf( " Failed to allocate A.d_Urow_ptr(nrow=%d)\n",nrow );
+      }
+      if (hipSuccess != hipMalloc ((void**)&(curLevelMatrix->d_Ucol_idx), nnzU*sizeof(int))) {
+        printf( " Failed to allocate A.d_Ucol_idx(nnzU=%d)\n",nnzU );
+      }
+      if (hipSuccess != hipMalloc ((void**)&(curLevelMatrix->d_Unzvals),  nnzU*sizeof(SC))) {
+        printf( " Failed to allocate A.d_Urow_ptr(nnzU=%d)\n",nnzU );
+      }
+
+      if (hipSuccess != hipMemcpy(curLevelMatrix->d_Urow_ptr, h_Urow_ptr, (nrow+1)*sizeof(int), hipMemcpyHostToDevice)) {
+        printf( " Failed to memcpy A.d_Urow_ptr\n" );
+      }
+      if (hipSuccess != hipMemcpy(curLevelMatrix->d_Ucol_idx, h_Ucol_ind, nnzU*sizeof(int), hipMemcpyHostToDevice)) {
+        printf( " Failed to memcpy A.d_Ucol_idx\n" );
+      }
+      if (hipSuccess != hipMemcpy(curLevelMatrix->d_Unzvals,  h_Unzvals,  nnzU*sizeof(SC),  hipMemcpyHostToDevice)) {
+        printf( " Failed to memcpy A.d_Urow_ptr\n" );
       #endif
 
       // free matrix on host
@@ -345,16 +382,35 @@ int OptimizeProblem(SparseMatrix_type & A, CGData_type & data, Vector_type & b, 
           printf( " Failed to allocate A.d_nzvals(nc=%d)\n",nc );
         }
 
-        if (cudaSuccess != cudaMemcpy(curLevelMatrix->mgData->d_row_ptr, h_row_ptr, (nc+1)*sizeof(int), hipMemcpyHostToDevice)) {
+        if (cudaSuccess != cudaMemcpy(curLevelMatrix->mgData->d_row_ptr, h_row_ptr, (nc+1)*sizeof(int), cudaMemcpyHostToDevice)) {
           printf( " Failed to memcpy A.d_row_ptr\n" );
         }
-        if (cudaSuccess != cudaMemcpy(curLevelMatrix->mgData->d_col_idx, h_col_ind, nc*sizeof(int), hipMemcpyHostToDevice)) {
+        if (cudaSuccess != cudaMemcpy(curLevelMatrix->mgData->d_col_idx, h_col_ind, nc*sizeof(int), cudaMemcpyHostToDevice)) {
           printf( " Failed to memcpy A.d_col_idx\n" );
         }
-        if (cudaSuccess != cudaMemcpy(curLevelMatrix->mgData->d_nzvals,  h_nzvals,  nc*sizeof(SC),  hipMemcpyHostToDevice)) {
+        if (cudaSuccess != cudaMemcpy(curLevelMatrix->mgData->d_nzvals,  h_nzvals,  nc*sizeof(SC),  cudaMemcpyHostToDevice)) {
           printf( " Failed to memcpy A.d_nzvals\n" );
         }
         #elif defined(HPCG_WITH_HIP)
+        if (hipSuccess != hipMalloc ((void**)&(curLevelMatrix->mgData->d_row_ptr), (nc+1)*sizeof(int))) {
+          printf( " Failed to allocate A.d_row_ptr(nc=%d)\n",nc );
+        }
+        if (hipSuccess != hipMalloc ((void**)&(curLevelMatrix->mgData->d_col_idx), nc*sizeof(int))) {
+          printf( " Failed to allocate A.d_col_idx(nc=%d)\n",nc );
+        }
+        if (hipSuccess != hipMalloc ((void**)&(curLevelMatrix->mgData->d_nzvals),  nc*sizeof(SC))) {
+          printf( " Failed to allocate A.d_nzvals(nc=%d)\n",nc );
+        }
+
+        if (hipSuccess != hipMemcpy(curLevelMatrix->mgData->d_row_ptr, h_row_ptr, (nc+1)*sizeof(int), hipMemcpyHostToDevice)) {
+          printf( " Failed to memcpy A.d_row_ptr\n" );
+        }
+        if (hipSuccess != hipMemcpy(curLevelMatrix->mgData->d_col_idx, h_col_ind, nc*sizeof(int), hipMemcpyHostToDevice)) {
+          printf( " Failed to memcpy A.d_col_idx\n" );
+        }
+        if (hipSuccess != hipMemcpy(curLevelMatrix->mgData->d_nzvals,  h_nzvals,  nc*sizeof(SC),  hipMemcpyHostToDevice)) {
+          printf( " Failed to memcpy A.d_nzvals\n" );
+        }
         #endif
 
         // -------------------------
@@ -390,6 +446,12 @@ int OptimizeProblem(SparseMatrix_type & A, CGData_type & data, Vector_type & b, 
       printf( " Failed to memcpy x\n" );
     }
     #elif defined(HPCG_WITH_HIP)
+    if (hipSuccess != hipMemcpy(b.d_values,  b.values, (b.localLength)*sizeof(vector_SC),  hipMemcpyHostToDevice)) {
+      printf( " Failed to memcpy b\n" );
+    }
+    if (hipSuccess != hipMemcpy(x.d_values,  x.values, (x.localLength)*sizeof(vector_SC),  hipMemcpyHostToDevice)) {
+      printf( " Failed to memcpy x\n" );
+    }
     #endif
   }
 #endif

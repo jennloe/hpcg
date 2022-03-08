@@ -88,7 +88,6 @@ public:
   #if defined(HPCG_WITH_CUDA)
   cusparseHandle_t cusparseHandle;
   cusparseMatDescr_t descrA;
-  cusparseMatDescr_t descrU;
   #endif
 
   // to store the local matrix on device
@@ -101,7 +100,6 @@ public:
   #if defined(HPCG_WITH_CUDA)
   cusparseMatDescr_t descrL;
   cusparseSolveAnalysisInfo_t infoL;
-  cusparseMatDescr_t descrU;
   #endif
   int *d_Lrow_ptr;
   int *d_Lcol_idx;

@@ -89,15 +89,82 @@ int main(int argc, char * argv[]) {
   MPI_Init(&argc, &argv);
 #endif
 
+  //Initialize params for full-scale benchmark run:
   HPCG_Params params;
-
   HPCG_Init(&argc, &argv, params);
+  int size = params.comm_size; // Num MPI processes
+  int rank = params.comm_rank; // My process ID
+
+// **************************************************************************8
+// PHASE I: VERIFY CONVERGENCE WITH SMALL PROBLEM
+// **************************************************************************8
+
+  MPI_Comm SM_COMM;
+  MPI_Group group_world;
+  MPI_Group sm_group;
+  if( size <= 64 ) //Use all MPI ranks
+    SM_COMM = MPI_COMM_WORLD;
+  else{
+    // Get MPI Sub-communicator:
+    int num_ranks = 64;
+    int *process_ranks;
+    // make a list of processes in the new communicator
+    process_ranks = (int*) malloc(num_ranks*sizeof(int));
+    for(int i = 0; i < num_ranks; i++)
+      process_ranks[i] = i;
+    //get the group under MPI_COMM_WORLD
+    MPI_Comm_group(MPI_COMM_WORLD, &group_world);
+    // create the new group
+    MPI_Group_incl(group_world, num_ranks, process_ranks, &sm_group);
+    // create the new communicator
+    MPI_Comm_create(MPI_COMM_WORLD, sm_group, &SM_COMM);
+  }
+
+  HPCG_Params sm_params;
+  sm_params.nx = 32;
+  sm_params.ny = 32;
+  sm_params.nz = 32;
+
+  sm_params.runningTime = 0.0005; //Something really small since we just want one run??
+  sm_params.pz = 0;
+  sm_params.zl = 0;
+  sm_params.zu = 0;
+
+  sm_params.npx = 0;
+  sm_params.npy = 0;
+  sm_params.npz = 0;
+
+#ifndef HPCG_NO_MPI
+  MPI_Comm_rank( SM_COMM, &sm_params.comm_rank );
+  MPI_Comm_size( SM_COMM, &sm_params.comm_size );
+#else
+  sm_params.comm_rank = 0;
+  sm_params.comm_size = 1;
+#endif
+
+#ifdef HPCG_NO_OPENMP
+  sm_params.numThreads = 1;
+#else
+  #pragma omp parallel
+  sm_params.numThreads = omp_get_num_threads();
+#endif
+
+  // Construct the geometry and linear system
+  local_int_t nx,ny,nz;
+  sm_nx = (local_int_t)sm_params.nx;
+  sm_ny = (local_int_t)sm_params.ny;
+  sm_nz = (local_int_t)sm_params.nz;
+  Geometry * sm_geom = new Geometry;
+  GenerateGeometry(sm_params.comm_size, sm_params.comm_rank, sm_params.numThreads, sm_params.pz, 
+      sm_params.zl, sm_params.zu, sm_nx, sm_ny, sm_nz, sm_params.npx, sm_params.npy, sm_params.npz, sm_geom);
+
+// **************************************************************************8
+// PHASE II: BENCHMARKING PHASE
+// **************************************************************************8
 
   // Check if QuickPath option is enabled.
   // If the running time is set to zero, we minimize all paths through the program
   bool quickPath = 1; //TODO: Change back to the following after=(params.runningTime==0);
-
-  int size = params.comm_size, rank = params.comm_rank; // Number of MPI processes, My process ID
 
 #ifdef HPCG_DETAILED_DEBUG
   if (size < 100 && rank==0) HPCG_fout << "Process "<<rank<<" of "<<size<<" is alive with " << params.numThreads << " threads." <<endl;

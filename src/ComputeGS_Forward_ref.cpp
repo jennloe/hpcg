@@ -22,6 +22,8 @@
  #include "ExchangeHalo.hpp"
 #endif
 #ifdef HPCG_WITH_CUDA
+ #include <cuda_runtime.h>
+ #include <cublas_v2.h>
  #include "ComputeSPMV.hpp"
  #include "ComputeWAXPBY.hpp"
  #ifdef HPCG_DEBUG
@@ -73,7 +75,6 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
   // workspace
   Vector_type b = A.x; // nrow
   scalar_type * const d_bv = b.d_values;
-
   scalar_type * const d_xv = x.d_values;
 
   // Copy local part of X to HOST CPU
@@ -91,9 +92,9 @@ int ComputeGS_Forward_ref(const SparseMatrix_type & A, const Vector_type & r, Ve
   #define HPCG_COMPACT_GS
   #ifdef HPCG_COMPACT_GS
   // Copy non-local part of X (after Halo Exchange) into x0 on device
-  if (cudaSuccess != cudaMemcpy(&d_xv[nrow], &xv[nrow], (ncol-nrow)*sizeof(scalar_type), cudaMemcpyHostToDevice)) {
-    printf( " Failed to memcpy d_y\n" );
-  }
+  //if (cudaSuccess != cudaMemcpy(&d_xv[nrow], &xv[nrow], (ncol-nrow)*sizeof(scalar_type), cudaMemcpyHostToDevice)) {
+  //  printf( " Failed to memcpy d_y\n" );
+  //}
   #else
   Vector_type x0 = A.y; // ncol
   scalar_type * const x0v = x0.values;

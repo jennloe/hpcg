@@ -84,9 +84,12 @@ public:
   local_int_t * sendLength; //!< lenghts of messages sent to neighboring processes
   SC * sendBuffer; //!< send buffer for non-blocking sends
 #endif
-#ifdef HPCG_WITH_CUDA
+#if defined(HPCG_WITH_CUDA) | defined(HPCG_WITH_HIP)
+  #if defined(HPCG_WITH_CUDA)
   cusparseHandle_t cusparseHandle;
   cusparseMatDescr_t descrA;
+  cusparseMatDescr_t descrU;
+  #endif
 
   // to store the local matrix on device
   int *d_row_ptr;
@@ -95,14 +98,19 @@ public:
 
   // to store the lower-triangular matrix on device
   local_int_t nnzL;
+  #if defined(HPCG_WITH_CUDA)
   cusparseMatDescr_t descrL;
   cusparseSolveAnalysisInfo_t infoL;
+  cusparseMatDescr_t descrU;
+  #endif
   int *d_Lrow_ptr;
   int *d_Lcol_idx;
   SC  *d_Lnzvals;   //!< values of matrix entries
   // to store the strictly upper-triangular matrix on device
   local_int_t nnzU;
+  #if defined(HPCG_WITH_CUDA)
   cusparseMatDescr_t descrU;
+  #endif
   int *d_Urow_ptr;
   int *d_Ucol_idx;
   SC  *d_Unzvals;   //!< values of matrix entries

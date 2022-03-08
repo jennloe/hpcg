@@ -29,6 +29,9 @@
 #ifdef HPCG_WITH_CUDA
  #include <cuda_runtime.h>
  #include <cublas_v2.h>
+#elif defined(HPCG_WITH_HIP)
+ #include <hip/hip_runtime_api.h>
+ #include <rocblas.h>
 #endif
 
 #include <cassert>
@@ -78,33 +81,46 @@ int ComputeDotProduct_ref(const local_int_t n, const Vector_type & x, const Vect
   }
 #endif
 
-#ifdef HPCG_WITH_CUDA
-  // setup (ToDo: move this out)
-  cublasHandle_t handle = x.handle;
+#if defined(HPCG_WITH_CUDA) | defined(HPCG_WITH_HIP)
   scalar_type* d_x = x.d_values;
   scalar_type* d_y = y.d_values;
-  #if 0
-  if (cudaSuccess != cudaMemcpy(d_x, xv, n*sizeof(scalar_type), cudaMemcpyHostToDevice)) {
-    printf( " Failed to memcpy d_x\n" );
-  }
-  if (cudaSuccess != cudaMemcpy(d_y, yv, n*sizeof(scalar_type), cudaMemcpyHostToDevice)) {
-    printf( " Failed to memcpy d_y\n" );
-  }
-  #endif
 
   #ifdef HPCG_DEBUG
   scalar_type local_tmp = local_result;
   #endif
+  #if defined(HPCG_WITH_CUDA)
   // Compute dot on Nvidia GPU
+  cublasHandle_t handle = x.handle;
   if (std::is_same<scalar_type, double>::value) {
     if (CUBLAS_STATUS_SUCCESS != cublasDdot (handle, n, (double*)d_x, 1, (double*)d_y, 1, (double*)&local_result)) {
       printf( " Failed cublasDdot\n" );
     }
   } else if (std::is_same<scalar_type, float>::value) {
     if (CUBLAS_STATUS_SUCCESS != cublasSdot (handle, n, (float*)d_x, 1,  (float*)d_y, 1,  (float*)&local_result)) {
-      printf( " Failed cublasDdot\n" );
+      printf( " Failed cublasSdot\n" );
     }
   }
+  #elif defined(HPCG_WITH_HIP)
+  // Compute dot on AMD GPU
+  rocblas_handle handle = x.handle;
+  #if 1 // TODO remove this
+  if (hipSuccess != hipMemcpy(d_x, xv, sizeof(scalar_type) * n, hipMemcpyHostToDevice)) {
+    printf( " Failed hipMemcpy d_x\n" );
+  }
+  if (hipSuccess != hipMemcpy(d_y, yv, sizeof(scalar_type) * n, hipMemcpyHostToDevice)) {
+    printf( " Failed hipMemcpy d_y\n" );
+  }
+  #endif
+  if (std::is_same<scalar_type, double>::value) {
+    if (rocblas_status_success != rocblas_ddot (handle, n, (double*)d_x, 1, (double*)d_y, 1, (double*)&local_result)) {
+      printf( " Failed rocblas_ddot\n" );
+    }
+  } else if (std::is_same<scalar_type, float>::value) {
+    if (rocblas_status_success != rocblas_sdot (handle, n, (float*)d_x, 1,  (float*)d_y, 1,  (float*)&local_result)) {
+      printf( " Failed rocblas_sdot\n" );
+    }
+  }
+  #endif
 #endif
 
 #ifndef HPCG_NO_MPI

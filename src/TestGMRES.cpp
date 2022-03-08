@@ -191,7 +191,7 @@ int TestGMRES(SparseMatrix_type & A, SparseMatrix_type2 & A_lo, CGData_type & da
 template<class SparseMatrix_type, class CGData_type, class Vector_type, class TestCGData_type>
 int TestGMRES(SparseMatrix_type & A, CGData_type & data, Vector_type & b, Vector_type & x, TestCGData_type & testcg_data,
               bool test_diagonal_exaggeration, bool test_noprecond) {
-  TestGMRES(A, A, data, data, b, x, testcg_data, test_diagonal_exaggeration, test_noprecond);
+  return TestGMRES(A, A, data, data, b, x, testcg_data, test_diagonal_exaggeration, test_noprecond);
 }
 
 

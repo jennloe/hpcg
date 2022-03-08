@@ -22,6 +22,8 @@
  #include "ExchangeHalo.hpp"
 #endif
 #ifdef HPCG_WITH_CUDA
+ #include <cuda_runtime.h>
+ #include <cublas_v2.h>
  #include "ComputeSPMV.hpp"
  #include "ComputeWAXPBY.hpp"
  #ifdef HPCG_DEBUG

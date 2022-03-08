@@ -56,8 +56,8 @@ HPCG_DEPS = src/ComputeResidual.o \
 	    src/GenerateNonsymCoarseProblem.o \
 
 # These header files are included in many source files, so we recompile every file if one or more of these header is modified.
-PRIMARY_HEADERS = HPCG_SRC_PATH/src/Geometry.hpp HPCG_SRC_PATH/src/SparseMatrix.hpp HPCG_SRC_PATH/src/Vector.hpp HPCG_SRC_PATH/src/CGData.hpp \
-                  HPCG_SRC_PATH/src/MGData.hpp HPCG_SRC_PATH/src/hpgmp.hpp
+PRIMARY_HEADERS = HPCG_SRC_PATH/src/Geometry.hpp HPCG_SRC_PATH/src/SparseMatrix.hpp HPCG_SRC_PATH/src/Vector.hpp HPCG_SRC_PATH/src/MultiVector.hpp \
+                  HPCG_SRC_PATH/src/CGData.hpp HPCG_SRC_PATH/src/MGData.hpp HPCG_SRC_PATH/src/hpgmp.hpp
 
 all: bin/xhpgmp bin/xhpgmp_time
 
